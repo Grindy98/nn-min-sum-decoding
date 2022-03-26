@@ -54,9 +54,6 @@ class OddLayer(Layer):
 
     def __init__(self, tanner_graph: nx.Graph, name):
         super().__init__(name=name)
-
-        # Initialize constant structure of layer
-        neuron_n = len(tanner_graph.edges)
         
         self.prev_layer_mask = _create_prev_layer_mask(tanner_graph, 'v')
         self.input_layer_mask = _create_input_layer_mask(tanner_graph)
@@ -67,4 +64,49 @@ class OddLayer(Layer):
         from_prev = inputs[1] @ self.prev_layer_mask
         
         return from_input + from_prev
+
+
+class OddLayerFirst(Layer):
+
+    def __init__(self, tanner_graph: nx.Graph, name):
+        super().__init__(name=name)
+        
+        self.input_layer_mask = _create_input_layer_mask(tanner_graph)
     
+    def call(self, inputs):
+        
+        from_input = inputs @ self.input_layer_mask
+        
+        return from_input
+
+
+class EvenLayer(Layer):
+
+    def __init__(self, tanner_graph: nx.Graph, name):
+        super().__init__(name=name)
+        
+        prev_mask = _create_prev_layer_mask(tanner_graph, 'c')
+        self.inf_mask = tf.where(prev_mask == 0, np.inf, 0)
+        neuron_n = len(prev_mask)
+        self.bias = self.add_weight(
+            shape=(1, neuron_n),
+            
+        )
+    
+    def call(self, inputs):
+        
+        # Repeat rows for each input neuron to form an array of square matrices
+        expanded_in = tf.tile(tf.expand_dims(inputs, -2), 
+                              [1, self.inf_mask.shape[0], 1])
+        masked_prod = expanded_in + self.inf_mask
+        # Multiply masked input row-wise to get sign
+        signs = tf.sign(tf.math.reduce_prod(masked_prod, -1))
+
+        abs_in = tf.abs(expanded_in)
+        # Compute min row-wise with infinite mask
+        mins = tf.reduce_min(abs_in + self.inf_mask, -1)
+
+        # Add beta weight
+        biased_mins = tf.maximum(mins - self.bias, 0)
+        
+        return signs * biased_mins
