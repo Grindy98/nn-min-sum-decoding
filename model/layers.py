@@ -48,7 +48,23 @@ def _create_input_layer_mask(graph):
         
     return tf.convert_to_tensor(B, dtype='float32')
         
+def _create_final_layer_mask(graph):
+    edge_idx = _edge_sort(graph)
+    edge_n = len(graph.edges)
+    v_n = len([n for n in graph.nodes if n.startswith('v')])
     
+    # Build layer mask
+    A = np.zeros((edge_n, v_n))
+    for idx in range(v_n):
+        node = f'v{idx}'
+        # Common node edges
+        selected_edges = [edge_idx[_stdize(e)] for e 
+                       in graph.edges(node)]
+        
+        A[selected_edges, idx] = 1
+        
+    return tf.convert_to_tensor(A, dtype='float32')
+
 
 class OddLayer(Layer):
 
@@ -110,3 +126,18 @@ class EvenLayer(Layer):
         biased_mins = tf.maximum(mins - self.bias, 0)
         
         return signs * biased_mins
+
+
+class OutputLayer(Layer):
+
+    def __init__(self, tanner_graph: nx.Graph, name):
+        super().__init__(name=name)
+        
+        self.final_layer_mask = _create_final_layer_mask(tanner_graph)
+    
+    def call(self, inputs):
+        # Inputs from input layer are just passed through
+        from_input = inputs[0]
+        from_prev = inputs[1] @ self.final_layer_mask
+        
+        return from_input + from_prev
