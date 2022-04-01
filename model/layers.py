@@ -1,5 +1,6 @@
 
 from keras.layers import Layer
+import keras.backend as K 
 import networkx as nx
 import numpy as np
 import tensorflow as tf
@@ -99,7 +100,7 @@ class OddLayerFirst(Layer):
 class EvenLayer(Layer):
 
     def __init__(self, tanner_graph: nx.Graph, name):
-        super().__init__(name=name)
+        super().__init__(name=name, dynamic=True)
         
         prev_mask = _create_prev_layer_mask(tanner_graph, 'c')
         self.inf_mask = tf.where(prev_mask == 0, np.inf, 0)
@@ -124,6 +125,10 @@ class EvenLayer(Layer):
 
         # Add beta weight
         biased_mins = tf.maximum(mins - self.bias, 0)
+        K.print_tensor(self.bias, message='self.bias')
+        K.print_tensor(mins, message='real mins')
+        K.print_tensor(biased_mins, message='val of mins')
+        K.print_tensor(signs, message='val of signs')
         
         return signs * biased_mins
 
@@ -140,4 +145,6 @@ class OutputLayer(Layer):
         from_input = inputs[0]
         from_prev = inputs[1] @ self.final_layer_mask
         
-        return from_input + from_prev
+        # Apply sigmoid to convert to probabilities
+        out = from_input + from_prev
+        return out
