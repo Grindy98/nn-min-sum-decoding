@@ -21,6 +21,7 @@ def prob_to_llr(x):
     # 1/y - 1 = e^-x
     # ln(1/y - 1) = -x
     # ln(y/(1-y)) = x
+    assert(0 < x and x < 1)
     return tf.math.log(x/(1 - x))
 
 def llr_to_prob(x):

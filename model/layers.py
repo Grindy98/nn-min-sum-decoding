@@ -96,14 +96,13 @@ class OddLayerFirst(Layer):
         
         return from_input
 
-
 class EvenLayer(Layer):
 
     def __init__(self, tanner_graph: nx.Graph, name):
-        super().__init__(name=name, dynamic=True)
+        super().__init__(name=name)
         
         prev_mask = _create_prev_layer_mask(tanner_graph, 'c')
-        self.inf_mask = tf.where(prev_mask == 0, np.inf, 0)
+        self.inf_mask = tf.where(prev_mask == 0, np.inf, 0.0)
         neuron_n = len(prev_mask)
         self.bias = self.add_weight(
             shape=(1, neuron_n),
@@ -114,10 +113,11 @@ class EvenLayer(Layer):
         
         # Repeat rows for each input neuron to form an array of square matrices
         expanded_in = tf.tile(tf.expand_dims(inputs, -2), 
-                              [1, self.inf_mask.shape[0], 1])
+                            [1, self.inf_mask.shape[0], 1])
         masked_prod = expanded_in + self.inf_mask
+
         # Multiply masked input row-wise to get sign
-        signs = tf.sign(tf.math.reduce_prod(masked_prod, -1))
+        signs = tf.math.reduce_prod(tf.sign(masked_prod), -1)
 
         abs_in = tf.abs(expanded_in)
         # Compute min row-wise with infinite mask
@@ -125,12 +125,8 @@ class EvenLayer(Layer):
 
         # Add beta weight
         biased_mins = tf.maximum(mins - self.bias, 0)
-        K.print_tensor(self.bias, message='self.bias')
-        K.print_tensor(mins, message='real mins')
-        K.print_tensor(biased_mins, message='val of mins')
-        K.print_tensor(signs, message='val of signs')
         
-        return signs * biased_mins
+        return biased_mins * signs
 
 
 class OutputLayer(Layer):
@@ -146,5 +142,4 @@ class OutputLayer(Layer):
         from_prev = inputs[1] @ self.final_layer_mask
         
         # Apply sigmoid to convert to probabilities
-        out = from_input + from_prev
-        return out
+        return from_input + from_prev
