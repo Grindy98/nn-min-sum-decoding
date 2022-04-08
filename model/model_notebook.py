@@ -42,7 +42,10 @@ H_4_7 = np.array(const_dict['H_4_7'])
 # %%
 from utils import get_tanner_graph
 
-G, pos = get_tanner_graph(H_4_7)
+active_mat = H_32_44
+
+G, pos = get_tanner_graph(active_mat)
+gen_mat = galois.generator_to_parity_check_matrix(galois.GF2(active_mat))
 
 nx.draw_networkx(G, pos)
 
@@ -51,17 +54,6 @@ from keras.layers import Input
 from keras.models import Model
 
 from layers import OutputLayer
-
-# %%
-inp = Input(shape=(7,))
-inp2 = Input(shape=(12,))
-out = OutputLayer(G, 'i1')([inp, inp2])
-model = Model([inp, inp2], out)
-
-# %%
-g = tf.random.Generator.from_seed(123)
-
-model.predict([g.normal((1,7)), g.normal((1,12))])
 
 # %%
 from keras.layers import Input
@@ -91,15 +83,16 @@ def create_model(tanner_graph, iters = 1):
 
 
 # %%
-model, n_v = create_model(G, 2)
+model, n_v = create_model(G, 5)
 model.summary()
 
 # %%
-tf.keras.utils.plot_model(model, show_shapes=True)
+# tf.keras.utils.plot_model(model, show_shapes=True)
 
 # %%
 from utils import prob_to_llr, llr_to_prob
-def loss_wrapper(n_v):
+
+def loss_wrapper(n_v, e_clip=1e-10):
     def inner(y_true, y_pred):
         # Fix for None, None shape
         y_true = tf.reshape(y_true, [-1, n_v])
@@ -108,8 +101,8 @@ def loss_wrapper(n_v):
         y_true = tf.where(y_true <= 0, 0.0, 1.0)
         y_pred = llr_to_prob(y_pred)
         N = y_true.shape[1]
-        out = y_true * tf.math.log(y_pred)
-        out += (1 - y_true) * tf.math.log(1 - y_pred)
+        out = y_true * tf.math.log(tf.clip_by_value(y_pred, e_clip, 1.0))
+        out += (1 - y_true) * tf.math.log(tf.clip_by_value(1 - y_pred, e_clip, 1.0))
         out = tf.math.reduce_sum(out, axis=1)
         out = -1/N * out
         return out
@@ -118,7 +111,7 @@ def loss_wrapper(n_v):
 
 # %%
 from tensorflow.keras.optimizers import Adam
-adam = Adam(learning_rate=0.001)
+adam = Adam(learning_rate=0.01)
 
 
 model.compile(
@@ -128,18 +121,27 @@ model.compile(
 
 # %%
 import keras.backend as K 
+from utils import encode
 
-def datagen(shape, p, data_limit=1000000, zero_only=True):
+# Generator matrix for shape and creation of codewords
+def datagen(gen_matrix, batch_size, p, data_limit=1000000, zero_only=True):
     neg_llr = prob_to_llr(p)
     pos_llr = -neg_llr
     for _ in range(data_limit):
+        input_shape = (batch_size, gen_matrix.shape[0])
         if zero_only:
-            y = np.zeros(shape, dtype=bool)
+            y = galois.GF2(np.zeros(input_shape, dtype=int))
         else:
-            y = np.random.choice([False, True], size=shape)
+            y = galois.GF2(np.random.choice([0, 1], size=input_shape))
+        
+        # Transform dataword to codeword
+        y = y @ gen_matrix
+        
         # This is the binary symmetric channel mask
-        mask = np.random.choice([False, True], size=shape, p=[1-p, p])
-        x = np.logical_xor(y, mask)
+        mask = galois.GF2(np.random.choice([0, 1], size=y.shape, p=[1-p, p]))
+        x = y + mask
+        
+        # Transform from bool to llr
         x = np.where(x, pos_llr, neg_llr)
         y = np.where(y, pos_llr, neg_llr)
         x = x.astype('float32')
@@ -149,7 +151,7 @@ def datagen(shape, p, data_limit=1000000, zero_only=True):
         
 
 # %%
-gen = datagen([120, n_v], 0.05)
+gen = datagen(gen_mat, 120, 0.05)
 print(n_v)
 
 model.fit(
@@ -174,8 +176,25 @@ model.fit(
 
 # %%
 model.evaluate(
-    x=datagen([120, n_v], 0.05, zero_only=True),
+    x=datagen(gen_mat, 120, 0.05, zero_only=False),
     steps=100 
 )
+
+# %%
+s = next(datagen(gen_mat, 1, 0.05, zero_only=True))[0]
+llr_to_prob(s)
+
+# %%
+llr_to_prob(model.predict(s))
+
+# %%
+pred = tf.where(llr_to_prob(model.predict(s)) > 0.5, 1, 0)
+pred
+
+# %%
+tf.math.mod(H_32_44 @ tf.transpose(tf.where(llr_to_prob(s) > 0.5, 1, 0)), 2)
+
+# %%
+tf.math.mod(H_32_44 @ tf.transpose(pred), 2)
 
 # %%

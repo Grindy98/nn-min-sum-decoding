@@ -26,3 +26,10 @@ def prob_to_llr(x):
 
 def llr_to_prob(x):
     return tf.math.sigmoid(x)
+
+
+def encode(gen_matrix, dataword):
+    return np.mod(dataword @ gen_matrix, 2)
+
+def parity_check(parity_matrix, codeword):
+    return np.mod(codeword @ parity_matrix, 2)

@@ -105,8 +105,7 @@ class EvenLayer(Layer):
         self.inf_mask = tf.where(prev_mask == 0, np.inf, 0.0)
         neuron_n = len(prev_mask)
         self.bias = self.add_weight(
-            shape=(1, neuron_n),
-            
+            shape=(1, neuron_n)
         )
     
     def call(self, inputs):
