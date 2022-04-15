@@ -35,17 +35,19 @@ def swap_form(matrix):
 
 # %%
 const_dict = scipy.io.loadmat('constants.mat')
-H_test = np.array(const_dict['BCH_test'])
-H_32_44 = np.array(const_dict['H_32_44'])
-H_4_7 = np.array(const_dict['H_4_7'])
+H_32_44 = swap_form(np.array(const_dict['H_32_44']))
+H_4_7 = swap_form(np.array(const_dict['H_4_7']))
 
 # %%
 from utils import get_tanner_graph
 
 active_mat = H_32_44
+# active_mat = np.array(tf.constant(
+#     galois.generator_to_parity_check_matrix(
+#         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
 
 G, pos = get_tanner_graph(active_mat)
-gen_mat = galois.generator_to_parity_check_matrix(galois.GF2(active_mat))
+gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 
 nx.draw_networkx(G, pos)
 
@@ -83,13 +85,6 @@ def create_model(tanner_graph, iters = 1):
 
 
 # %%
-model, n_v = create_model(G, 5)
-model.summary()
-
-# %%
-# tf.keras.utils.plot_model(model, show_shapes=True)
-
-# %%
 from utils import prob_to_llr, llr_to_prob
 
 def loss_wrapper(n_v, e_clip=1e-10):
@@ -110,8 +105,15 @@ def loss_wrapper(n_v, e_clip=1e-10):
 
 
 # %%
+model, n_v = create_model(G, 5)
+# model.summary()
+
+# %%
+# tf.keras.utils.plot_model(model, show_shapes=True)
+
+# %%
 from tensorflow.keras.optimizers import Adam
-adam = Adam(learning_rate=0.01)
+adam = Adam(learning_rate=0.1)
 
 
 model.compile(
@@ -125,7 +127,7 @@ from utils import encode
 
 # Generator matrix for shape and creation of codewords
 def datagen(gen_matrix, batch_size, p, data_limit=1000000, zero_only=True):
-    neg_llr = prob_to_llr(p)
+    neg_llr = prob_to_llr(0.01)
     pos_llr = -neg_llr
     for _ in range(data_limit):
         input_shape = (batch_size, gen_matrix.shape[0])
@@ -151,12 +153,13 @@ def datagen(gen_matrix, batch_size, p, data_limit=1000000, zero_only=True):
         
 
 # %%
-gen = datagen(gen_mat, 120, 0.05)
-print(n_v)
+p = 0.01
+gen = datagen(gen_mat, 120, p)
 
+# %%
 model.fit(
     x=gen,
-    epochs=5,
+    epochs=3,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
@@ -165,7 +168,7 @@ model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=1000,
+    steps_per_epoch=400,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -176,12 +179,12 @@ model.fit(
 
 # %%
 model.evaluate(
-    x=datagen(gen_mat, 120, 0.05, zero_only=False),
+    x=datagen(gen_mat, 120, p, zero_only=False),
     steps=100 
 )
 
 # %%
-s = next(datagen(gen_mat, 1, 0.05, zero_only=True))[0]
+s = next(datagen(gen_mat, 100, p, zero_only=True))[0]
 llr_to_prob(s)
 
 # %%
@@ -192,9 +195,30 @@ pred = tf.where(llr_to_prob(model.predict(s)) > 0.5, 1, 0)
 pred
 
 # %%
+test_inp = tf.where(llr_to_prob(s) > 0.5, 1, 0)
+test_inp
+
+# %%
+tf.math.reduce_sum(tf.math.mod(pred + test_inp, 2), -1)
+
+# %%
+test_inp[28]
+
+# %%
+pred[28]
+
+# %%
 tf.math.mod(H_32_44 @ tf.transpose(tf.where(llr_to_prob(s) > 0.5, 1, 0)), 2)
 
 # %%
 tf.math.mod(H_32_44 @ tf.transpose(pred), 2)
+
+# %%
+tf.math.reduce_max(tf.math.abs(model.weights))
+
+# %%
+galois.bch_valid_codes(31)
+
+# %%
 
 # %%
