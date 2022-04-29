@@ -27,7 +27,7 @@ module out_layer
         for(int j = 0; j < N_V; j += 1) begin
             for(int t_i = 0; t_i < E; t_i += 1) begin
                 // reinit the sum
-                sum <= 0;
+                sum = 0;
                 
                 // for every check node that composes an edge with the variable node
                 if (tanner_g[t_i][0] == j) begin
@@ -36,12 +36,12 @@ module out_layer
                             continue;
                         end
                         
-                        sum <= sum + prev_proc_elem[prev_i];
+                        sum = sum + prev_proc_elem[prev_i];
                     end
                 end
             end
             
-            out_llr[j] <= llr[j] + sum;
+            out_llr[j] = llr[j] + sum;
         end
     end
     

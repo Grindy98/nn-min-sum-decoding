@@ -13,16 +13,16 @@ module interm_layer
       
     wire signed [7:0] proc_elem_v [0:E-1];
     
-    variable_nodes #(.N_V(N_V), .N_C(N_C), .E(147)) v1_layer (  .clk(clk),
-                                                                .rst(rst),
-                                                                .tanner_g(tanner_g),
-                                                                .llr(llr),
-                                                                .prev_proc_elem(prev_proc_elem),
-                                                                .proc_elem(proc_elem_v));
+    variable_nodes #(.N_V(N_V), .N_C(N_C), .E(147)) v_layer (  .clk(clk),
+                                                               .rst(rst),
+                                                               .tanner_g(tanner_g),
+                                                               .llr(llr),
+                                                               .prev_proc_elem(prev_proc_elem),
+                                                               .proc_elem(proc_elem_v));
     
-    check_nodes #(.N_V(N_V), .N_C(N_C), .E(147)) c1_layer (  .clk(clk),
-                                                             .rst(rst),
-                                                             .tanner_g(tanner_g),
-                                                             .prev_proc_elem(proc_elem_v),
-                                                             .proc_elem(proc_elem));
+    check_nodes #(.N_V(N_V), .N_C(N_C), .E(147)) c_layer (  .clk(clk),
+                                                            .rst(rst),
+                                                            .tanner_g(tanner_g),
+                                                            .prev_proc_elem(proc_elem_v),
+                                                            .proc_elem(proc_elem));
 endmodule

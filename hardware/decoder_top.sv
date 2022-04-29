@@ -18,8 +18,7 @@ module decoder_top
     reg [7:0] tanner_g [0:E-1][0:1];
     reg signed [7:0] in_llr [N_V-1:0];
     
-    reg signed [7:0] proc_l1 [0:E-1];
-    wire signed [7:0] proc_elem [0:N_ITER-1][0:E-1];
+    reg signed [7:0] proc_elem [0:N_ITER][0:E-1];
     
     generate
         if (H_MATRIX_FILE != "") begin: use_init_file
@@ -31,21 +30,12 @@ module decoder_top
     
     genvar i;
     generate
-        for(i = 0; i < N_ITER; i += 1) begin: gen_interm_layers
-            if (i == 0) begin
-                interm_layer #(.N_V(N_V), .N_C(N_C), .E(147)) iterm (  .clk(clk),
-                                                                       .rst(rst),
-                                                                       .tanner_g(tanner_g),
-                                                                       .prev_proc_elem(proc_l1),
-                                                                       .proc_elem(proc_elem[0]));
-            end
-            else begin
-                interm_layer #(.N_V(N_V), .N_C(N_C), .E(147)) iterm (  .clk(clk),
-                                                                       .rst(rst),
-                                                                       .tanner_g(tanner_g),
-                                                                       .prev_proc_elem(proc_elem[i-1]),
-                                                                       .proc_elem(proc_elem[i]));
-            end
+        for(i = 0; i < N_ITER; i += 1) begin: gen_interm_layers         
+            interm_layer #(.N_V(N_V), .N_C(N_C), .E(147)) iterm (  .clk(clk),
+                                                                   .rst(rst),
+                                                                   .tanner_g(tanner_g),
+                                                                   .prev_proc_elem(proc_elem[i]),
+                                                                   .proc_elem(proc_elem[i+1]));
         end
     endgenerate
     
@@ -57,6 +47,7 @@ module decoder_top
     out_layer #(.N_V(N_V), .N_C(N_C), .E(147)) o_layer (  .clk(clk),
                                                           .rst(rst),
                                                           .tanner_g(tanner_g),
+                                                          .llr(in_llr),
                                                           .prev_proc_elem(proc_elem[N_ITER-1]),
                                                           .out_llr(out_llr));                                                          
     
@@ -69,8 +60,8 @@ module decoder_top
         for(int i = 0; i < N_C; i += 1) begin
             for(int j = 0; j < N_V; j += 1) begin
                 if(h_matrix[i][j] == 1) begin
-                    tanner_g[t_index][0] = i;
-                    tanner_g[t_index][1] = j;
+                    tanner_g[t_index][0] = j;
+                    tanner_g[t_index][1] = i;
                     
                     t_index += 1;
                 end
@@ -81,8 +72,10 @@ module decoder_top
     // For the first iteration, consider the processing elements = 0
     // so initialize proc_l1 as such
     always @ (negedge rst) begin
-        for(int i = 0; i < E; i += 1) begin
-            proc_l1[i] = 8'b0;
+        for(int i = 0; i <= N_ITER; i += 1) begin
+            for(int j = 0; j < E; j += 1) begin
+                proc_elem[i][j] <= 8'b0;
+            end
         end
     end
    

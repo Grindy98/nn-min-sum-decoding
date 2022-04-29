@@ -15,14 +15,17 @@ module check_nodes
       input signed [7:0] prev_proc_elem [0:E-1],
       output reg signed [7:0] proc_elem [0:E-1]);
       
-    reg [7:0] sum = 8'b0;
-    reg [7:0] min = 8'b01111111;
-    reg signed [1:0] sign_prod = 2'b00;
-    reg [7:0] temp_reg = 8'b0;
+    reg [7:0] sum;
+    reg [7:0] min;
+    reg signed [1:0] sign_prod;
+    reg [7:0] temp_reg;
       
     always @ (posedge clk, negedge rst) begin
         if (!rst) begin
-            // do something if reset
+            sum = 8'b0;
+            min = 8'b01111111;
+            sign_prod = 2'b00;
+            temp_reg = 8'b0;
         end
     end
     
@@ -31,9 +34,10 @@ module check_nodes
         for(int i = 0; i < N_C; i += 1) begin
             for(int t_i = 0; t_i < E; t_i += 1) begin
                 // reinit the sum, product and min
-                sum <= 0;
-                sign_prod <= 1;
-                min <= 8'b01111111;
+                temp_reg = 8'b0;
+                sum = 0;
+                sign_prod = 1;
+                min = 8'b01111111;
                 
                 // for every variable node that composes an edge with the check node
                 if (tanner_g[t_i][1] == i) begin
@@ -43,26 +47,26 @@ module check_nodes
                         end
                         
                         // find the min value for processing elem
-                        temp_reg <= prev_proc_elem[prev_i];
-                        min <= (min > temp_reg)? min : temp_reg;
+                        temp_reg = prev_proc_elem[prev_i];
+                        min = (min > temp_reg)? min : temp_reg;
                         
                         // The value of the sign_prod changes only in the case 
                         // that temp_reg is either negative or zero
                         // If temp_reg is positive, the product multiplied by 1 
                         // is that product
                         if (temp_reg < 0) begin 
-                            sign_prod <= sign_prod * (-1);
+                            sign_prod = sign_prod * (-1);
                         end
                         else if (temp_reg == 0) begin
                             // sign(0) = 0
-                            sign_prod <= 0;
+                            sign_prod = 0;
                         end
                     end    
                 end
                 
                 // for now the coeficients are hardcoded
-                proc_elem[t_i] <= ((min - 8'b0) < 0) ? 0 : (min - 8'b0);  
-                proc_elem[t_i] <= proc_elem[t_i] * sign_prod;
+                proc_elem[t_i] = ((min - 8'b0) < 0) ? 0 : (min - 8'b0);  
+                proc_elem[t_i] = proc_elem[t_i] * sign_prod;
             end
         end
     end
