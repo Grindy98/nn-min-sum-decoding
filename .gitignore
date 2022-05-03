@@ -1,6 +1,6 @@
-*/test/
+**/test/
 .ipynb_checkpoints
+.vscode
 __pycache__
 *.ipynb
-*.o
-*.out
+**/build/

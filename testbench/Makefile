@@ -1,19 +1,42 @@
-CC = gcc
-CFLAGS = -Wall -g
+CXX = gcc
+CXX_FLAGS = -Wall
 
-all: testbench.out
+# Final binary
+BIN = testbench
+# Put all auto generated stuff to this build dir.
+BUILD_DIR = ./build
 
-testbench.out: test.o matrix.o layer.o
-	$(CC) $(CFLAGS) test.o matrix.o layer.o -o testbench.out
+# List of all .c source files.
+C = test.c $(wildcard *.c) 
 
-test.o: test.c
-	$(CC) $(CFLAGS) -c test.c -o test.o
+# All .o files go to build dir.
+OBJ = $(C:%.c=$(BUILD_DIR)/%.o)
+# Gcc/Clang will create these .d files containing dependencies.
+DEP = $(OBJ:%.o=%.d)
 
-matrix.o: matrix.c
-	$(CC) $(CFLAGS) -c matrix.c -o matrix.o
+# Default target named after the binary.
+$(BIN) : $(BUILD_DIR)/$(BIN)
 
-layer.o: layer.c
-	$(CC) $(CFLAGS) -c layer.c -o layer.o
+# Actual target of the binary - depends on all .o files.
+$(BUILD_DIR)/$(BIN) : $(OBJ)
+	# Create build directories - same structure as sources.
+	mkdir -p $(@D)
+	# Just link all the object files.
+	$(CXX) $(CXX_FLAGS) $^ -o $@
 
-clean:
-	rm *.o *.out
+# Include all .d files
+-include $(DEP)
+
+# Build target for every single object file.
+# The potential dependency on header files is covered
+# by calling `-include $(DEP)`.
+$(BUILD_DIR)/%.o : %.c
+	mkdir -p $(@D)
+	# The -MMD flags additionaly creates a .d file with
+	# the same name as the .o file.
+	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
+
+.PHONY : clean
+clean :
+	# This should remove all generated files.
+	-rm $(BUILD_DIR)/$(BIN) $(OBJ) $(DEP)

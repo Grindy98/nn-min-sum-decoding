@@ -3,18 +3,18 @@
 
 #include "matrix.h"
 
-typedef struct oddlayer{
-    matrix* prev_layer_mask;
-    matrix* input_mask;
-} oddlayer;
+typedef struct oddlayer_t{
+    matrix_t* prev_layer_mask;
+    matrix_t* input_mask;
+} oddlayer_t;
 
-typedef struct evenlayer{
-    matrix* prev_layer_mask;
-    matrix* biases;
-} evenlayer;
+typedef struct evenlayer_t{
+    matrix_t* prev_layer_mask;
+    matrix_t* biases;
+} evenlayer_t;
 
-matrix* process_oddlayer(oddlayer layer, matrix* from_input, matrix* from_prev_layer);
+matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* from_prev_layer);
 
-matrix* process_evenlayer(evenlayer layer, matrix* from_prev_layer);
+matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer);
 
 #endif
