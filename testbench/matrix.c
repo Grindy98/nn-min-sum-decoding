@@ -2,6 +2,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// Custom int helper functions
+cint_t add(cint_t a, cint_t b){
+    return (cint_t){a.x + b.x};
+}
+
+cint_t sub(cint_t a, cint_t b){
+    return (cint_t){a.x - b.x};
+}
+
+cint_t mul(cint_t a, cint_t b){
+    return (cint_t){a.x * b.x};
+}
+
 // Initialize with arr or with 0 if no arr
 matrix_t* create_mat(cint_t* arr, int rows, int cols){
     cint_t* new_arr = malloc(rows * cols * sizeof(cint_t));
