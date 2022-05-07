@@ -4,11 +4,19 @@
 
 // Custom int helper functions
 cint_t add(cint_t a, cint_t b){
-    return (cint_t){a.x + b.x};
+    // Addition with saturation
+    cint_t sum = {a.x + b.x};
+    if(a.x >= 0 && b.x >= 0 && sum.x < 0){
+        sum = (cint_t){CINT_MAX};
+    }
+    if(a.x < 0 && b.x < 0 && sum.x >= 0){
+        sum = (cint_t){CINT_MIN};
+    }
+    return sum;
 }
 
 cint_t sub(cint_t a, cint_t b){
-    return (cint_t){a.x - b.x};
+    return add((cint_t){a.x}, (cint_t){-b.x});
 }
 
 cint_t mul(cint_t a, cint_t b){

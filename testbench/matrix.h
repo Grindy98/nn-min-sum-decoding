@@ -1,7 +1,7 @@
 #ifndef MATRIX
 #define MATRIX
 
-#define CINT_BITSIZE 8
+#define CINT_BITSIZE 4
 #define CINT_MAX (~((~0u) << (CINT_BITSIZE-1)))
 #define CINT_MIN (1u << (CINT_BITSIZE-1))
 
