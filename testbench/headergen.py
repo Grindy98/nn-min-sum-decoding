@@ -24,8 +24,10 @@ def get_array(arr, arr_name):
     return ret
 
 
-def build_header(dict_of_arrays):
+def build_header(dict_of_arrays, file_name):
     ret = ''
+    ret += f'#ifndef {file_name.upper()}'
+    ret += f'#define {file_name.upper()}'
     ret += '#include "matrix.h"\n'
     for name in dict_of_arrays.keys():
         ret += f'matrix* {name}_mat;\n'
@@ -34,6 +36,7 @@ def build_header(dict_of_arrays):
         ret += get_array(val, name + '_arr')
         ret += f'{name}_mat = create_matrix({name}_arr, {val.shape[0]}, {val.shape[1]});\n'
     ret += '}\n'
+    ret += '#endif'
     return ret
 
 def main():
