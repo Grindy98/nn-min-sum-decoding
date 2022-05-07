@@ -23,8 +23,12 @@ cint_t mul(cint_t a, cint_t b){
     return (cint_t){a.x * b.x};
 }
 
+cint_t mod_2(cint_t a){
+    return (cint_t){(2 + (a.x % 2))%2};
+}
+
 // Initialize with arr or with 0 if no arr
-matrix_t* create_mat(cint_t* arr, int rows, int cols){
+matrix_t* create_mat(cint_t* arr, int rows, int cols, int is_mod_two){
     cint_t* new_arr = malloc(rows * cols * sizeof(cint_t));
     if(new_arr == NULL){
         exit(1);
@@ -38,7 +42,8 @@ matrix_t* create_mat(cint_t* arr, int rows, int cols){
         {
             for (int j = 0; j < cols; j++)
             {
-                new_arr[i * cols + j] = arr[i * cols + j];
+                cint_t elem = arr[i * cols + j];
+                new_arr[i * cols + j] = is_mod_two ? mod_2(elem) : elem;
             }
             
         }
@@ -55,11 +60,12 @@ matrix_t* create_mat(cint_t* arr, int rows, int cols){
     ret->mat = new_arr;
     ret->col_size = cols;
     ret->row_size = rows;
+    ret->is_mod_two = (is_mod_two != 0);
     return ret;
 }
 
-matrix_t* duplicate_mat(matrix_t* mat){
-    return create_mat(mat->mat, mat->row_size, mat->row_size);
+matrix_t* duplicate_mat(matrix_t* mat, int is_mod_two){
+    return create_mat(mat->mat, mat->row_size, mat->row_size, is_mod_two);
 }
 
 int check_range(matrix_t* mat, int row, int col){
@@ -80,7 +86,8 @@ void put_elem(matrix_t* mat, int row, int col, cint_t elem){
         printf("Invalid range for elem\n");
         exit(1);
     } 
-    mat->mat[row * mat->col_size + col] = elem;
+    mat->mat[row * mat->col_size + col].x = mat->is_mod_two ?
+        ((2 + (elem.x % 2)) % 2) : elem.x;
 }
 
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
@@ -88,9 +95,12 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
         printf("Matrices must have same inner rank\n");
         exit(1);
     }
+    // If both matrices are mod two, resul is also mod two
+    int mod_two_flag = A->is_mod_two && B->is_mod_two;
+
     int new_row = A->row_size;
     int new_col = B->col_size;
-    matrix_t* new_mat = create_mat(NULL, new_row, new_col);
+    matrix_t* new_mat = create_mat(NULL, new_row, new_col, mod_two_flag);
     for (int i = 0; i < new_row; i++)
     {
         for (int j = 0; j < new_col; j++)
@@ -99,6 +109,7 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
             for (int k = 0; k < A->col_size; k++)
             {
                 sum = add(sum, mul(get_elem(A, i, k), get_elem(B, k, j)));
+                sum = mod_two_flag ? mod_2(sum) : sum;
             }
             
             put_elem(new_mat, i, j, sum); 
@@ -114,14 +125,18 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
         printf("Matrices must have same ranks\n");
         exit(1);
     }
+    // If both matrices are mod two, resul is also mod two
+    int mod_two_flag = A->is_mod_two && B->is_mod_two;
+
     int new_row = A->row_size;
     int new_col = A->col_size;
-    matrix_t* new_mat = create_mat(NULL, new_row, new_col);
+    matrix_t* new_mat = create_mat(NULL, new_row, new_col, mod_two_flag);
     for (int i = 0; i < new_row; i++)
     {
         for (int j = 0; j < new_col; j++)
         {
-            put_elem(new_mat, i, j, add(get_elem(A, i, j), get_elem(B, i, j)));
+            cint_t new_sum = add(get_elem(A, i, j), get_elem(B, i, j));
+            put_elem(new_mat, i, j, mod_two_flag ? mod_2(new_sum) : new_sum);
         }
         
     }
@@ -136,7 +151,7 @@ matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     }
     int new_row = A->row_size;
     int new_col = A->col_size;
-    matrix_t* new_mat = create_mat(NULL, new_row, new_col);
+    matrix_t* new_mat = create_mat(NULL, new_row, new_col, A->is_mod_two && B->is_mod_two);
     for (int i = 0; i < new_row; i++)
     {
         for (int j = 0; j < new_col; j++)

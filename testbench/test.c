@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+
 #include "matrix.h"
 #include "layer.h"
+#include "channel.h"
 
 int main(){
+    // Seed for rng
+    srand(time(0));
+
     matrix_t* inp_mat;
     matrix_t* prev_mat;
     matrix_t* inp_mat_mask;
@@ -23,11 +29,11 @@ int main(){
                                   {0}, {1}, {0}, {0}, {1},
                                   {0}, {1}, {0}, {1}, {0}};
         cint_t bias_arr[] = {{0}, {1}, {-1}, {0}, {1}};
-        inp_mat = create_mat(inp_arr, 1, 3);
-        prev_mat = create_mat(prev_arr, 1, 5);
-        inp_mat_mask = create_mat(inp_arr_mask, 3, 5);
-        prev_mat_mask = create_mat(prev_arr_mask, 5, 5);
-        bias_mat = create_mat(bias_arr, 1, 5);
+        inp_mat = create_mat(inp_arr, 1, 3, 0);
+        prev_mat = create_mat(prev_arr, 1, 5, 0);
+        inp_mat_mask = create_mat(inp_arr_mask, 3, 5, 1);
+        prev_mat_mask = create_mat(prev_arr_mask, 5, 5, 1);
+        bias_mat = create_mat(bias_arr, 1, 5, 0);
     }
     // Odd layer test
     oddlayer_t oddl;
@@ -45,6 +51,12 @@ int main(){
     evenl.biases = bias_mat;
     out = process_evenlayer(evenl, prev_mat);
     display_mat(out);
+ 
+    printf("Channel tests\n");
+    matrix_t* cw = generate_random_codeword(inp_mat_mask);
+    display_mat(cw);
+
+    free_mat(&cw);
     free_mat(&out);
     free_mat(&inp_mat);
     free_mat(&prev_mat);

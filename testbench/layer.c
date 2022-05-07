@@ -25,7 +25,7 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     }
     
     // Generate sign vector
-    matrix_t* signs = create_mat(NULL, 1, layer.prev_layer_mask->row_size);
+    matrix_t* signs = create_mat(NULL, 1, layer.prev_layer_mask->row_size, 0);
     for (int i = 0; i < layer.prev_layer_mask->row_size; i++)
     {
         cint_t curr_sign = {1};
@@ -41,7 +41,7 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     }
 
     // Generate minimum vector
-    matrix_t* minimum = create_mat(NULL, 1, layer.prev_layer_mask->row_size);
+    matrix_t* minimum = create_mat(NULL, 1, layer.prev_layer_mask->row_size, 0);
     for (int i = 0; i < layer.prev_layer_mask->row_size; i++)
     {
         cint_t curr_min = {CINT_MAX};

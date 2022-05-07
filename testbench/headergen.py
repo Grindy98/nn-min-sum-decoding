@@ -33,8 +33,10 @@ def build_header(dict_of_arrays, file_name):
         ret += f'matrix* {name}_mat;\n'
     ret += '{\n'
     for name, val in dict_of_arrays.items():
+        is_binary_flag = ((val == 0) or (val == 1)).all()
         ret += get_array(val, name + '_arr')
-        ret += f'{name}_mat = create_matrix({name}_arr, {val.shape[0]}, {val.shape[1]});\n'
+        ret += (f'{name}_mat = create_matrix({name}_arr, {val.shape[0]}, {val.shape[1]}, '
+                f'{1 if is_binary_flag else 0});\n')
     ret += '}\n'
     ret += '#endif'
     return ret

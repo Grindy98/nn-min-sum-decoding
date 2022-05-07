@@ -1,49 +1,28 @@
 #include "channel.h"
-#include "matrix.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 
-void binary_to_llr(matrix_t* mat, llrParams params){
-    
-}
-
-int to_defined_int(float* in, int in_size, cint_t* out, int out_size, llrParams params){
-    int ret_size = in_size;
-    if(out_size < in_size){
-        // Only fill until out_size
-        ret_size = out_size;
+matrix_t* generate_random_codeword(matrix_t* gen_mat){
+    if(!gen_mat->is_mod_two){
+        printf("Generator matrix has to be mod 2\n");
+        exit(1);
     }
-
-    for (int i = 0; i < ret_size; i++)
+    // Generate exactly as many bits as expected by the input
+    cint_t random_arr[gen_mat->row_size];
+    for (int i = 0; i < gen_mat->row_size; i++)
     {
-        float x = in[i] * (1u << params.dec_point_bit);
-        cint_t a = {x};
-        if(x > CINT_MAX){
-            printf("Warning: Float array conversion to int overflow\n");
-            a.x = CINT_MAX;
-        }
-        if(x < CINT_MIN){
-            printf("Warning: Float array conversion to int underflow\n");
-            a.x = CINT_MIN;
-        }
-        out[i] = a;
+        random_arr[i] = (cint_t){rand() % 2};
     }
-    return ret_size;
-    
+    matrix_t* new_inp = create_mat(random_arr, 1, gen_mat->row_size, 1);
+    matrix_t* ret = mat_mul(new_inp, gen_mat);
+    free_mat(&new_inp);
+    return ret;
 }
 
-int from_defined_int(cint_t* in, int in_size, float* out, int out_size, llrParams params){
-    int ret_size = in_size;
-    if(out_size < in_size){
-        // Only fill until out_size
-        ret_size = out_size;
-    }
-
-    for (int i = 0; i < ret_size; i++)
-    {
-        out[i] = ((float)in[i].x) / (1u << params.dec_point_bit);
-    }
-    return ret_size;
-    
-}
+// matrix_t* generate(matrix_t* inp, matrix_t* gen_mat){
+//     if(inp->row_size != 1){
+//         printf("Input has to be row vector\n");
+//         exit(1);
+//     }
+//     return mat_mul(inp, gen_mat);
+// }
