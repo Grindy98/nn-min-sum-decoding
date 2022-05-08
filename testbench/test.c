@@ -6,10 +6,13 @@
 #include "matrix.h"
 #include "layer.h"
 #include "channel.h"
+#include "adj_matrix_wrapper.h"
 
 int main(){
     // Seed for rng
     srand(time(0));
+
+    init_adj_mats();
 
     matrix_t* inp_mat;
     matrix_t* prev_mat;
@@ -66,5 +69,6 @@ int main(){
     free_mat(&inp_mat_mask);
     free_mat(&prev_mat_mask);
     free_mat(&bias_mat);
+    free_adj_mats();
     return 0;
 }
