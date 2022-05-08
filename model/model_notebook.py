@@ -66,6 +66,7 @@ from keras.layers import Input
 from keras.models import Model
 
 from layers import OddLayerFirst, OddLayer, EvenLayer, OutputLayer
+import layers
 
 def create_model(tanner_graph, iters = 1):
     n_v = len([n for n in tanner_graph.nodes if n.startswith('v')])
@@ -144,6 +145,21 @@ def datagen_creator(gen_matrix, data_limit=1000000):
 # %%
 model, n_v = create_model(G, 5)
 # model.summary()
+
+# %%
+def generate_adj_matrix_data(tanner_graph):
+    data_out = {
+        'odd_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'v'),
+        'odd_inp_layer_mask': layers._create_input_layer_mask(tanner_graph),
+        'even_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'c'),
+        'output_mask': layers._create_final_layer_mask(tanner_graph),
+    }
+    return {k: np.array(v, dtype=int) for k, v in data_out.items()}
+        
+
+
+# %%
+np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
 
 # %%
 # tf.keras.utils.plot_model(model, show_shapes=True)
