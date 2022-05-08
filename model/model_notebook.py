@@ -35,7 +35,7 @@ def swap_form(matrix):
 
 
 # %%
-const_dict = scipy.io.loadmat('constants.mat')
+const_dict = scipy.io.loadmat('../data/constants.mat')
 H_32_44 = swap_form(np.array(const_dict['H_32_44']))
 H_4_7 = swap_form(np.array(const_dict['H_4_7']))
 
