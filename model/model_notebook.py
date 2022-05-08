@@ -299,7 +299,7 @@ H_4_7_stats
 #     })
 
 # %%
-with np.load("stats.npz") as data:
+with np.load("../data/stats.npz") as data:
     fig = plt.figure(figsize=(10,10))
     plt.xlabel('BER')
     plt.ylabel('Crossover probability')
@@ -310,10 +310,10 @@ with np.load("stats.npz") as data:
     plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
     plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
     plt.legend()
-    fig.savefig('BER.svg')
+    # fig.savefig('BER.svg')
 
 # %%
-with np.load("stats.npz") as data:
+with np.load("../data/stats.npz") as data:
     fig = plt.figure(figsize=(10,10))
     plt.xlabel('FER')
     plt.ylabel('Crossover probability')
@@ -324,11 +324,11 @@ with np.load("stats.npz") as data:
     plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
     plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
     plt.legend()
-    fig.savefig('FER.svg')
+    # fig.savefig('FER.svg')
 
 # %%
-with np.load("stats.npz") as data:
-    create_text_table('H_32_44.txt', data['p_range'], data['H_32_44'])
-    create_text_table('BCH_16_31.txt', data['p_range'], data['BCH_16_31'])
+# with np.load("../data/stats.npz") as data:
+#     create_text_table('H_32_44.txt', data['p_range'], data['H_32_44'])
+#     create_text_table('BCH_16_31.txt', data['p_range'], data['BCH_16_31'])
 
 # %%
