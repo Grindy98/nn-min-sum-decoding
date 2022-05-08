@@ -65,7 +65,7 @@ matrix_t* create_mat(cint_t* arr, int rows, int cols, int is_mod_two){
 }
 
 matrix_t* duplicate_mat(matrix_t* mat, int is_mod_two){
-    return create_mat(mat->mat, mat->row_size, mat->row_size, is_mod_two);
+    return create_mat(mat->mat, mat->row_size, mat->col_size, is_mod_two);
 }
 
 int check_range(matrix_t* mat, int row, int col){
