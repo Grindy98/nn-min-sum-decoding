@@ -55,7 +55,10 @@ int main(){
     printf("Channel tests\n");
     matrix_t* cw = generate_random_codeword(inp_mat_mask);
     display_mat(cw);
+    matrix_t* llr_cw = channel_out_llr(cw, 0.2);
+    display_mat(llr_cw);
 
+    free_mat(&llr_cw);
     free_mat(&cw);
     free_mat(&out);
     free_mat(&inp_mat);
