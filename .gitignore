@@ -4,3 +4,4 @@
 __pycache__
 *.ipynb
 **/build/
+adj_matrix_wrapper.[ch]

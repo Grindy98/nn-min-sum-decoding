@@ -33,6 +33,8 @@ $(BUILD_DIR)/%.o : %.c
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
 
 # Specific build targets
+adj_matrix_wrapper.c adj_matrix_wrapper.h : ../data/adj_matrices.npz codegen.py
+	python3 codegen.py ../data/adj_matrices.npz -o adj_matrix_wrapper
 
 .PHONY : clean
 clean :
