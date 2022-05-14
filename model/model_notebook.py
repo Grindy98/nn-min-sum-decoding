@@ -25,6 +25,7 @@ import scipy.io
 import numpy as np
 import galois
 import networkx as nx
+from matplotlib import pyplot as plt
 
 
 # %%
@@ -35,17 +36,22 @@ def swap_form(matrix):
 
 # %%
 const_dict = scipy.io.loadmat('../data/constants.mat')
-H_test = np.array(const_dict['BCH_test'])
-H_32_44 = np.array(const_dict['H_32_44'])
-H_4_7 = np.array(const_dict['H_4_7'])
+H_32_44 = swap_form(np.array(const_dict['H_32_44']))
+H_4_7 = swap_form(np.array(const_dict['H_4_7']))
+
+# %%
+BCH_16_31 = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
 
 # %%
 from utils import get_tanner_graph
 
-active_mat = H_32_44
+# active_mat = H_32_44
+active_mat = BCH_16_31
 
 G, pos = get_tanner_graph(active_mat)
-gen_mat = galois.generator_to_parity_check_matrix(galois.GF2(active_mat))
+gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 
 nx.draw_networkx(G, pos)
 
@@ -60,6 +66,7 @@ from keras.layers import Input
 from keras.models import Model
 
 from layers import OddLayerFirst, OddLayer, EvenLayer, OutputLayer
+import layers
 
 def create_model(tanner_graph, iters = 1):
     n_v = len([n for n in tanner_graph.nodes if n.startswith('v')])
@@ -83,13 +90,6 @@ def create_model(tanner_graph, iters = 1):
 
 
 # %%
-model, n_v = create_model(G, 5)
-model.summary()
-
-# %%
-# tf.keras.utils.plot_model(model, show_shapes=True)
-
-# %%
 from utils import prob_to_llr, llr_to_prob
 
 def loss_wrapper(n_v, e_clip=1e-10):
@@ -110,8 +110,63 @@ def loss_wrapper(n_v, e_clip=1e-10):
 
 
 # %%
+import keras.backend as K 
+from utils import encode
+
+# Generator matrix for shape and creation of codewords
+def datagen_creator(gen_matrix, data_limit=1000000):
+    def datagen(batch_size, p, zero_only=True):
+        neg_llr = prob_to_llr(0.01)
+        pos_llr = -neg_llr
+        for _ in range(data_limit):
+            input_shape = (batch_size, gen_matrix.shape[0])
+            if zero_only:
+                y = galois.GF2(np.zeros(input_shape, dtype=int))
+            else:
+                y = galois.GF2(np.random.choice([0, 1], size=input_shape))
+
+            # Transform dataword to codeword
+            y = y @ gen_matrix
+
+            # This is the binary symmetric channel mask
+            mask = galois.GF2(np.random.choice([0, 1], size=y.shape, p=[1-p, p]))
+            x = y + mask
+
+            # Transform from bool to llr
+            x = np.where(x, pos_llr, neg_llr)
+            y = np.where(y, pos_llr, neg_llr)
+            x = x.astype('float32')
+            y = y.astype('float32')
+            yield x, y
+    return datagen;
+        
+
+
+# %%
+model, n_v = create_model(G, 5)
+# model.summary()
+
+# %%
+def generate_adj_matrix_data(tanner_graph):
+    data_out = {
+        'odd_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'v'),
+        'odd_inp_layer_mask': layers._create_input_layer_mask(tanner_graph),
+        'even_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'c'),
+        'output_mask': layers._create_final_layer_mask(tanner_graph),
+    }
+    return {k: np.array(v, dtype=int) for k, v in data_out.items()}
+        
+
+
+# %%
+np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
+
+# %%
+# tf.keras.utils.plot_model(model, show_shapes=True)
+
+# %%
 from tensorflow.keras.optimizers import Adam
-adam = Adam(learning_rate=0.01)
+adam = Adam(learning_rate=0.1)
 
 
 model.compile(
@@ -120,43 +175,13 @@ model.compile(
 )
 
 # %%
-import keras.backend as K 
-from utils import encode
-
-# Generator matrix for shape and creation of codewords
-def datagen(gen_matrix, batch_size, p, data_limit=1000000, zero_only=True):
-    neg_llr = prob_to_llr(p)
-    pos_llr = -neg_llr
-    for _ in range(data_limit):
-        input_shape = (batch_size, gen_matrix.shape[0])
-        if zero_only:
-            y = galois.GF2(np.zeros(input_shape, dtype=int))
-        else:
-            y = galois.GF2(np.random.choice([0, 1], size=input_shape))
-        
-        # Transform dataword to codeword
-        y = y @ gen_matrix
-        
-        # This is the binary symmetric channel mask
-        mask = galois.GF2(np.random.choice([0, 1], size=y.shape, p=[1-p, p]))
-        x = y + mask
-        
-        # Transform from bool to llr
-        x = np.where(x, pos_llr, neg_llr)
-        y = np.where(y, pos_llr, neg_llr)
-        x = x.astype('float32')
-        y = y.astype('float32')
-        yield x, y
-        
-        
+p = 0.01
+gen = datagen_creator(gen_mat)(120, p)
 
 # %%
-gen = datagen(gen_mat, 120, 0.05)
-print(n_v)
-
-model.fit(
+history = model.fit(
     x=gen,
-    epochs=5,
+    epochs=10,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
@@ -165,7 +190,7 @@ model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=1000,
+    steps_per_epoch=50,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -176,25 +201,150 @@ model.fit(
 
 # %%
 model.evaluate(
-    x=datagen(gen_mat, 120, 0.05, zero_only=False),
+    x=datagen_creator(gen_mat)(120, p, zero_only=False),
     steps=100 
 )
 
-# %%
-s = next(datagen(gen_mat, 1, 0.05, zero_only=True))[0]
-llr_to_prob(s)
 
 # %%
-llr_to_prob(model.predict(s))
+def get_stats_model(model, datagen, p):
+    def update_tuple(tup, tensor):
+        total = tf.reduce_sum(tf.ones(tensor.shape)).numpy()
+        total_neg = tf.math.count_nonzero(~tensor).numpy()
+        return tup[0] + total_neg, tup[1] + total
+    
+    datagen = datagen(100, p, zero_only=False)
+    # Gather data until there are more than 100 errors
+    ber = (0, 0)
+    fer = (0, 0)
+    for x, y_true in datagen:
+        if model:
+            y_pred = model.predict(x)
+        else:
+            y_pred = x
+        y_true = tf.where(llr_to_prob(y_true) > 0.5, 1, 0)
+        y_pred = tf.where(llr_to_prob(y_pred) > 0.5, 1, 0)
+        compare = tf.equal(y_true, y_pred)
+        reduced = tf.reduce_all(compare, axis=1)
+        ber = update_tuple(ber, compare)
+        fer = update_tuple(fer, reduced)
+        print(ber, fer)
+        if fer[0] > 100:
+            break
+    return ber[0]/ber[1], fer[0]/fer[1]
+        
+        
+        
 
 # %%
-pred = tf.where(llr_to_prob(model.predict(s)) > 0.5, 1, 0)
-pred
+get_stats_model(model, datagen_creator(gen_mat), p)
+
 
 # %%
-tf.math.mod(H_32_44 @ tf.transpose(tf.where(llr_to_prob(s) > 0.5, 1, 0)), 2)
+def generate_stats_for_matrix(mat, p_range, identity = False):
+    stats = []
+    for p in p_range:
+
+        G, pos = get_tanner_graph(mat)
+        gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(mat))
+        if not identity:
+            model, n_v = create_model(G, 5)
+            model.compile(
+                optimizer=adam,
+                loss=loss_wrapper(n_v)
+            )
+            gen = datagen_creator(gen_mat)(120, p)
+            model.fit(
+                x=gen,
+                epochs=10,
+                verbose="auto",
+                callbacks=None,
+                validation_split=0.0,
+                validation_data=None,
+                shuffle=True,
+                class_weight=None,
+                sample_weight=None,
+                initial_epoch=0,
+                steps_per_epoch=50,
+                validation_steps=None,
+                validation_batch_size=None,
+                validation_freq=1,
+                max_queue_size=10,
+                workers=1,
+                use_multiprocessing=False,
+            )
+            stats.append(get_stats_model(model, datagen_creator(gen_mat), p))
+        else:
+            # Mockup model with no change
+            stats.append(get_stats_model(None, datagen_creator(gen_mat), p))
+    return stats
+
 
 # %%
-tf.math.mod(H_32_44 @ tf.transpose(pred), 2)
+from tabulate import tabulate
+def create_text_table(fname, prob, data):
+    with open(fname, 'w') as outf:
+        outf.write(tabulate(np.concatenate([prob.reshape(-1, 1), data], axis=1), headers=['Probability', 'BER', 'FER']))
+
+
+# %%
+# Log range from 0.25 to 2^-12
+p_range = np.logspace(-2, -12, num=10, base=2)
+p_range
+
+# %%
+BCH_16_31_stats = generate_stats_for_matrix(BCH_16_31, p_range)
+
+# %%
+H_32_44_stats = generate_stats_for_matrix(H_32_44, p_range)
+
+# %%
+identity_stats = generate_stats_for_matrix(H_32_44, p_range, True)
+
+# %%
+H_4_7_stats
+
+# %%
+# with open("stats.npz", 'wb') as outf:
+#     np.savez(outf, **{
+#         'p_range' : p_range,
+#         'H_32_44' : H_32_44_stats,
+#         'H_4_7': H_4_7_stats,
+#         'BCH_16_31': BCH_16_31_stats,
+#         'identity': identity_stats
+#     })
+
+# %%
+with np.load("../data/stats.npz") as data:
+    fig = plt.figure(figsize=(10,10))
+    plt.xlabel('BER')
+    plt.ylabel('Crossover probability')
+    plt.loglog(data['H_32_44'][:, 0], data['p_range'], "r", label="H_32_44 BER")
+    plt.loglog(data['BCH_16_31'][:, 0], data['p_range'], "g", label="BCH_16_31 BER")
+    plt.loglog(data['identity'][:, 0], data['p_range'], "b", label="identity BER")
+    plt.gca().invert_xaxis()
+    plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
+    plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
+    plt.legend()
+    # fig.savefig('BER.svg')
+
+# %%
+with np.load("../data/stats.npz") as data:
+    fig = plt.figure(figsize=(10,10))
+    plt.xlabel('FER')
+    plt.ylabel('Crossover probability')
+    plt.loglog(data['H_32_44'][:, 1], data['p_range'], "r", label="H_32_44 FER")
+    plt.loglog(data['BCH_16_31'][:, 1], data['p_range'], "g", label="BCH_16_31 FER")
+    plt.loglog(data['identity'][:, 1], data['p_range'], "b", label="identity FER")
+    plt.gca().invert_xaxis()
+    plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
+    plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
+    plt.legend()
+    # fig.savefig('FER.svg')
+
+# %%
+# with np.load("../data/stats.npz") as data:
+#     create_text_table('H_32_44.txt', data['p_range'], data['H_32_44'])
+#     create_text_table('BCH_16_31.txt', data['p_range'], data['BCH_16_31'])
 
 # %%
