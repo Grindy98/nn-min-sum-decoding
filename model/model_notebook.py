@@ -45,10 +45,14 @@ BCH_16_31 = np.array(tf.constant(
         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
 
 # %%
-from utils import get_tanner_graph
-
 # active_mat = H_32_44
 active_mat = BCH_16_31
+
+DECIMAL_POINT_BIT = 6
+INT_SIZE = 8
+
+# %%
+from utils import get_tanner_graph
 
 G, pos = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
@@ -110,12 +114,24 @@ def loss_wrapper(n_v, e_clip=1e-10):
 
 
 # %%
+def convert_to_int(arr):
+    arr = arr * (2 ** DECIMAL_POINT_BIT)
+    arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
+    arr = np.rint(arr, dtype='float64')
+    return arr
+
+
+# %%
+x = np.random.rand(10) * 20 - 10
+convert_to_int(x)
+
+# %%
 import keras.backend as K 
 from utils import encode
 
 # Generator matrix for shape and creation of codewords
 def datagen_creator(gen_matrix, data_limit=1000000):
-    def datagen(batch_size, p, zero_only=True):
+    def datagen(batch_size, p, zero_only=True, test_int=False):
         neg_llr = prob_to_llr(0.01)
         pos_llr = -neg_llr
         for _ in range(data_limit):
@@ -135,8 +151,11 @@ def datagen_creator(gen_matrix, data_limit=1000000):
             # Transform from bool to llr
             x = np.where(x, pos_llr, neg_llr)
             y = np.where(y, pos_llr, neg_llr)
-            x = x.astype('float32')
-            y = y.astype('float32')
+            x = x.astype('float64')
+            y = y.astype('float64')
+            if test_int:
+                x = convert_to_int(x)
+                y = convert_to_int(y)
             yield x, y
     return datagen;
         
@@ -205,146 +224,53 @@ model.evaluate(
     steps=100 
 )
 
-
 # %%
-def get_stats_model(model, datagen, p):
-    def update_tuple(tup, tensor):
-        total = tf.reduce_sum(tf.ones(tensor.shape)).numpy()
-        total_neg = tf.math.count_nonzero(~tensor).numpy()
-        return tup[0] + total_neg, tup[1] + total
-    
-    datagen = datagen(100, p, zero_only=False)
-    # Gather data until there are more than 100 errors
-    ber = (0, 0)
-    fer = (0, 0)
-    for x, y_true in datagen:
-        if model:
-            y_pred = model.predict(x)
-        else:
-            y_pred = x
-        y_true = tf.where(llr_to_prob(y_true) > 0.5, 1, 0)
-        y_pred = tf.where(llr_to_prob(y_pred) > 0.5, 1, 0)
-        compare = tf.equal(y_true, y_pred)
-        reduced = tf.reduce_all(compare, axis=1)
-        ber = update_tuple(ber, compare)
-        fer = update_tuple(fer, reduced)
-        print(ber, fer)
-        if fer[0] > 100:
+# Extract biases
+from itertools import count
+def get_bias_arr():
+    bias_list = []
+    for i in count(start=1):
+        try:
+            l = model.get_layer(f'hl_{i * 2}')
+            bias_list.append(l.get_weights()[0])
+        except ValueError:
             break
-    return ber[0]/ber[1], fer[0]/fer[1]
-        
-        
-        
-
-# %%
-get_stats_model(model, datagen_creator(gen_mat), p)
+    bias_arr = np.concatenate(bias_list, axis=0)
+    return bias_arr
 
 
 # %%
-def generate_stats_for_matrix(mat, p_range, identity = False):
-    stats = []
-    for p in p_range:
-
-        G, pos = get_tanner_graph(mat)
-        gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(mat))
-        if not identity:
-            model, n_v = create_model(G, 5)
-            model.compile(
-                optimizer=adam,
-                loss=loss_wrapper(n_v)
-            )
-            gen = datagen_creator(gen_mat)(120, p)
-            model.fit(
-                x=gen,
-                epochs=10,
-                verbose="auto",
-                callbacks=None,
-                validation_split=0.0,
-                validation_data=None,
-                shuffle=True,
-                class_weight=None,
-                sample_weight=None,
-                initial_epoch=0,
-                steps_per_epoch=50,
-                validation_steps=None,
-                validation_batch_size=None,
-                validation_freq=1,
-                max_queue_size=10,
-                workers=1,
-                use_multiprocessing=False,
-            )
-            stats.append(get_stats_model(model, datagen_creator(gen_mat), p))
-        else:
-            # Mockup model with no change
-            stats.append(get_stats_model(None, datagen_creator(gen_mat), p))
-    return stats
+def set_bias_arr(bias_arr):
+    bias_list = np.split(bias_arr, bias_arr.shape[0], axis=0)
+    for i, b in enumerate(bias_list):
+        l = model.get_layer(f'hl_{(i + 1) * 2}')
+        l.bias.assign(b)
 
 
 # %%
-from tabulate import tabulate
-def create_text_table(fname, prob, data):
-    with open(fname, 'w') as outf:
-        outf.write(tabulate(np.concatenate([prob.reshape(-1, 1), data], axis=1), headers=['Probability', 'BER', 'FER']))
+
+# %%
+b_arr = get_bias_arr()
 
 
 # %%
-# Log range from 0.25 to 2^-12
-p_range = np.logspace(-2, -12, num=10, base=2)
-p_range
 
 # %%
-BCH_16_31_stats = generate_stats_for_matrix(BCH_16_31, p_range)
+model.evaluate(
+    x=datagen_creator(gen_mat)(120, p, zero_only=False, test_int=True),
+    steps=100 
+)
 
 # %%
-H_32_44_stats = generate_stats_for_matrix(H_32_44, p_range)
+test_in, test_true = next(datagen_creator(gen_mat)(1, p, zero_only=True, test_int=True))
 
 # %%
-identity_stats = generate_stats_for_matrix(H_32_44, p_range, True)
+model.predict(test_in)
 
 # %%
-H_4_7_stats
+np.where(model.predict(test_in) < 0, 0, 1)
 
 # %%
-# with open("stats.npz", 'wb') as outf:
-#     np.savez(outf, **{
-#         'p_range' : p_range,
-#         'H_32_44' : H_32_44_stats,
-#         'H_4_7': H_4_7_stats,
-#         'BCH_16_31': BCH_16_31_stats,
-#         'identity': identity_stats
-#     })
-
-# %%
-with np.load("../data/stats.npz") as data:
-    fig = plt.figure(figsize=(10,10))
-    plt.xlabel('BER')
-    plt.ylabel('Crossover probability')
-    plt.loglog(data['H_32_44'][:, 0], data['p_range'], "r", label="H_32_44 BER")
-    plt.loglog(data['BCH_16_31'][:, 0], data['p_range'], "g", label="BCH_16_31 BER")
-    plt.loglog(data['identity'][:, 0], data['p_range'], "b", label="identity BER")
-    plt.gca().invert_xaxis()
-    plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
-    plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
-    plt.legend()
-    # fig.savefig('BER.svg')
-
-# %%
-with np.load("../data/stats.npz") as data:
-    fig = plt.figure(figsize=(10,10))
-    plt.xlabel('FER')
-    plt.ylabel('Crossover probability')
-    plt.loglog(data['H_32_44'][:, 1], data['p_range'], "r", label="H_32_44 FER")
-    plt.loglog(data['BCH_16_31'][:, 1], data['p_range'], "g", label="BCH_16_31 FER")
-    plt.loglog(data['identity'][:, 1], data['p_range'], "b", label="identity FER")
-    plt.gca().invert_xaxis()
-    plt.grid(visible=True, which='major', linewidth=1, linestyle='-')
-    plt.grid(visible=True, which='minor', linewidth=0.5, linestyle='--')
-    plt.legend()
-    # fig.savefig('FER.svg')
-
-# %%
-# with np.load("../data/stats.npz") as data:
-#     create_text_table('H_32_44.txt', data['p_range'], data['H_32_44'])
-#     create_text_table('BCH_16_31.txt', data['p_range'], data['BCH_16_31'])
+test_true
 
 # %%
