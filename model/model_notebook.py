@@ -15,8 +15,14 @@
 
 # %%
 # %config Completer.use_jedi = False
+# %load_ext autoreload
+# %autoreload 2
 
-# %%
+# %% [markdown]
+# # Model Implementation and Configuration
+
+# %% [markdown]
+# ## Imports and Data Load
 
 # %%
 import tensorflow as tf
@@ -44,20 +50,8 @@ BCH_16_31 = np.array(tf.constant(
     galois.generator_to_parity_check_matrix(
         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
 
-# %%
-# active_mat = H_32_44
-active_mat = BCH_16_31
-
-DECIMAL_POINT_BIT = 6
-INT_SIZE = 8
-
-# %%
-from utils import get_tanner_graph
-
-G, pos = get_tanner_graph(active_mat)
-gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
-
-nx.draw_networkx(G, pos)
+# %% [markdown]
+# ## Function Definitions
 
 # %%
 from keras.layers import Input
@@ -114,16 +108,51 @@ def loss_wrapper(n_v, e_clip=1e-10):
 
 
 # %%
-def convert_to_int(arr):
-    arr = arr * (2 ** DECIMAL_POINT_BIT)
-    arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
-    arr = np.rint(arr, dtype='float64')
-    return arr
+from tensorflow.keras.optimizers import Adam
+
+from metrics import BER, FER
+
+def get_compiled_model(tanner_graph, iters = 1):
+    model, n_v = create_model(G, BF_ITERS)
+    adam = Adam(learning_rate=0.1)
+    model.compile(
+        optimizer=adam,
+        loss=loss_wrapper(n_v),
+        metrics = [
+            BER(),
+            FER()
+        ]
+    )
+    return model, n_v
 
 
 # %%
-x = np.random.rand(10) * 20 - 10
-convert_to_int(x)
+from itertools import count
+def get_bias_arr(model):
+    bias_list = []
+    for i in count(start=1):
+        try:
+            l = model.get_layer(f'hl_{i * 2}')
+            bias_list.append(l.get_weights()[0])
+        except ValueError:
+            break
+    bias_arr = np.concatenate(bias_list, axis=0)
+    return bias_arr
+
+def set_bias_arr(model, bias_arr):
+    bias_list = np.split(bias_arr, bias_arr.shape[0], axis=0)
+    for i, b in enumerate(bias_list):
+        l = model.get_layer(f'hl_{(i + 1) * 2}')
+        l.bias.assign(b)
+
+
+# %%
+def convert_to_int(arr):
+    arr = arr * (2 ** DECIMAL_POINT_BIT)
+    arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
+    arr = np.rint(arr)
+    return arr
+
 
 # %%
 import keras.backend as K 
@@ -132,7 +161,7 @@ from utils import encode
 # Generator matrix for shape and creation of codewords
 def datagen_creator(gen_matrix, data_limit=1000000):
     def datagen(batch_size, p, zero_only=True, test_int=False):
-        neg_llr = prob_to_llr(0.01)
+        neg_llr = prob_to_llr(p)
         pos_llr = -neg_llr
         for _ in range(data_limit):
             input_shape = (batch_size, gen_matrix.shape[0])
@@ -158,12 +187,7 @@ def datagen_creator(gen_matrix, data_limit=1000000):
                 y = convert_to_int(y)
             yield x, y
     return datagen;
-        
 
-
-# %%
-model, n_v = create_model(G, 5)
-# model.summary()
 
 # %%
 def generate_adj_matrix_data(tanner_graph):
@@ -177,24 +201,51 @@ def generate_adj_matrix_data(tanner_graph):
         
 
 
+# %% [markdown]
+# ## Configurations
+
+# %%
+# active_mat = H_32_44
+active_mat = BCH_16_31
+
+DECIMAL_POINT_BIT = 4
+INT_SIZE = 8
+
+BF_ITERS = 5
+
+p = 0.01
+
+# %% [markdown]
+# # Model training and testing
+#
+
+# %% [markdown]
+# ## Tanner Graph
+
+# %%
+from utils import get_tanner_graph
+
+G, pos = get_tanner_graph(active_mat)
+gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
+
+nx.draw_networkx(G, pos)
+
 # %%
 np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
+
+# %% [markdown]
+# ## Model Compile and Fit
+#
+# **RERUN FROM HERE IF MODEL PARAMETERS ALTERED**
+
+# %%
+model, n_v = get_compiled_model(G, BF_ITERS)
+# model.summary()
 
 # %%
 # tf.keras.utils.plot_model(model, show_shapes=True)
 
 # %%
-from tensorflow.keras.optimizers import Adam
-adam = Adam(learning_rate=0.1)
-
-
-model.compile(
-    optimizer=adam,
-    loss=loss_wrapper(n_v)
-)
-
-# %%
-p = 0.01
 gen = datagen_creator(gen_mat)(120, p)
 
 # %%
@@ -224,53 +275,25 @@ model.evaluate(
     steps=100 
 )
 
+# %% [markdown]
+# ## Bias Extraction and Integer Cast Evaluation
+
 # %%
 # Extract biases
-from itertools import count
-def get_bias_arr():
-    bias_list = []
-    for i in count(start=1):
-        try:
-            l = model.get_layer(f'hl_{i * 2}')
-            bias_list.append(l.get_weights()[0])
-        except ValueError:
-            break
-    bias_arr = np.concatenate(bias_list, axis=0)
-    return bias_arr
-
+bias_arr = get_bias_arr(model)
+bias_arr_casted = convert_to_int(bias_arr)
 
 # %%
-def set_bias_arr(bias_arr):
-    bias_list = np.split(bias_arr, bias_arr.shape[0], axis=0)
-    for i, b in enumerate(bias_list):
-        l = model.get_layer(f'hl_{(i + 1) * 2}')
-        l.bias.assign(b)
-
+# Test biases
+int_model, n_v = get_compiled_model(G, BF_ITERS)
+set_bias_arr(int_model, bias_arr_casted.astype('float64'))
 
 # %%
-
-# %%
-b_arr = get_bias_arr()
-
-
-# %%
-
-# %%
-model.evaluate(
+int_model.evaluate(
     x=datagen_creator(gen_mat)(120, p, zero_only=False, test_int=True),
     steps=100 
 )
 
 # %%
-test_in, test_true = next(datagen_creator(gen_mat)(1, p, zero_only=True, test_int=True))
-
-# %%
-model.predict(test_in)
-
-# %%
-np.where(model.predict(test_in) < 0, 0, 1)
-
-# %%
-test_true
-
-# %%
+# Save biases
+np.save('../data/biases.npy', bias_arr)
