@@ -2,34 +2,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// Custom int helper functions
-cint_t add(cint_t a, cint_t b){
-    // Addition with saturation
-    cint_t sum = {a.x + b.x};
-    if(a.x >= 0 && b.x >= 0 && sum.x < 0){
-        sum = (cint_t){CINT_MAX};
-    }
-    if(a.x < 0 && b.x < 0 && sum.x >= 0){
-        sum = (cint_t){CINT_MIN};
-    }
-    return sum;
-}
-
-cint_t sub(cint_t a, cint_t b){
-    return add((cint_t){a.x}, (cint_t){-b.x});
-}
-
-cint_t mul(cint_t a, cint_t b){
-    return (cint_t){a.x * b.x};
-}
-
-cint_t mod_2(cint_t a){
-    return (cint_t){(2 + (a.x % 2))%2};
-}
-
 // Initialize with arr or with 0 if no arr
-matrix_t* create_mat(cint_t* arr, int rows, int cols, int is_mod_two){
-    cint_t* new_arr = malloc(rows * cols * sizeof(cint_t));
+matrix_t* create_mat(int64_t* arr, int rows, int cols, int is_mod_two){
+    int64_t* new_arr = malloc(rows * cols * sizeof(int64_t));
     if(new_arr == NULL){
         exit(1);
     }
@@ -42,8 +17,8 @@ matrix_t* create_mat(cint_t* arr, int rows, int cols, int is_mod_two){
         {
             for (int j = 0; j < cols; j++)
             {
-                cint_t elem = arr[i * cols + j];
-                new_arr[i * cols + j] = is_mod_two ? mod_2(elem) : elem;
+                int64_t elem = arr[i * cols + j];
+                new_arr[i * cols + j] = is_mod_two ? (elem % 2) : elem;
             }
             
         }
@@ -52,7 +27,7 @@ matrix_t* create_mat(cint_t* arr, int rows, int cols, int is_mod_two){
         {
             for (int j = 0; j < cols; j++)
             {
-                new_arr[i * cols + j] = (cint_t){0};
+                new_arr[i * cols + j] = 0;
             }
             
         }
@@ -73,7 +48,7 @@ int check_range(matrix_t* mat, int row, int col){
         col >= 0 && col < mat->col_size;
 }
 
-cint_t get_elem(matrix_t* mat, int row, int col){
+int64_t get_elem(matrix_t* mat, int row, int col){
     if(!check_range(mat, row, col)){
         printf("Invalid range for elem\n");
         exit(1);
@@ -81,13 +56,34 @@ cint_t get_elem(matrix_t* mat, int row, int col){
     return mat->mat[row * mat->col_size + col];
 }
 
-void put_elem(matrix_t* mat, int row, int col, cint_t elem){
+void put_elem(matrix_t* mat, int row, int col, int64_t elem){
     if(!check_range(mat, row, col)){
         printf("Invalid range for elem\n");
         exit(1);
     } 
-    mat->mat[row * mat->col_size + col].x = mat->is_mod_two ?
-        ((2 + (elem.x % 2)) % 2) : elem.x;
+    mat->mat[row * mat->col_size + col] = mat->is_mod_two ?
+        ((2 + (elem % 2)) % 2) : elem;
+}
+
+void mat_apply_saturation(matrix_t* A){
+    int64_t maxsize = 1;
+    maxsize <<= CINT_SIZE - 1;
+    maxsize -= 1;
+
+    int64_t minsize = -1;
+    minsize <<= CINT_SIZE - 1;
+
+    for (int i = 0; i < A->row_size; i++)
+    {
+        for (int j = 0; j < A->col_size; j++)
+        {
+            int64_t elem = get_elem(A, i, j);
+            elem = elem > maxsize ? maxsize : elem;
+            elem = elem < minsize ? minsize : elem;
+            put_elem(A, i, j, elem);
+        }
+        
+    }
 }
 
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
@@ -105,11 +101,11 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
     {
         for (int j = 0; j < new_col; j++)
         {
-            cint_t sum = {0};
+            int64_t sum = 0;
             for (int k = 0; k < A->col_size; k++)
             {
-                sum = add(sum, mul(get_elem(A, i, k), get_elem(B, k, j)));
-                sum = mod_two_flag ? mod_2(sum) : sum;
+                sum += get_elem(A, i, k) * get_elem(B, k, j);
+                sum = mod_two_flag ? (sum % 2) : sum;
             }
             
             put_elem(new_mat, i, j, sum); 
@@ -135,8 +131,8 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
     {
         for (int j = 0; j < new_col; j++)
         {
-            cint_t new_sum = add(get_elem(A, i, j), get_elem(B, i, j));
-            put_elem(new_mat, i, j, mod_two_flag ? mod_2(new_sum) : new_sum);
+            int64_t new_sum = get_elem(A, i, j) * get_elem(B, i, j);
+            put_elem(new_mat, i, j, mod_two_flag ? (new_sum % 2) : new_sum);
         }
         
     }
@@ -156,7 +152,7 @@ matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     {
         for (int j = 0; j < new_col; j++)
         {
-            put_elem(new_mat, i, j, mul(get_elem(A, i, j), get_elem(B, i, j)));
+            put_elem(new_mat, i, j, get_elem(A, i, j) * get_elem(B, i, j));
         }
         
     }
@@ -170,7 +166,7 @@ void display_mat(matrix_t* mat){
         printf(" ");
         for (int j = 0; j < mat->col_size; j++)
         {
-            printf("%d ", get_elem(mat, i, j).x);
+            printf("%ld ", get_elem(mat, i, j));
         }
         printf("\n");
     }

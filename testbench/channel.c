@@ -8,10 +8,10 @@ matrix_t* generate_random_codeword(matrix_t* gen_mat){
         exit(1);
     }
     // Generate exactly as many bits as expected by the input
-    cint_t random_arr[gen_mat->row_size];
+    int64_t random_arr[gen_mat->row_size];
     for (int i = 0; i < gen_mat->row_size; i++)
     {
-        random_arr[i] = (cint_t){rand() % 2};
+        random_arr[i] = rand() % 2;
     }
     matrix_t* new_inp = create_mat(random_arr, 1, gen_mat->row_size, 1);
     matrix_t* ret = mat_mul(new_inp, gen_mat);
@@ -28,12 +28,12 @@ matrix_t* channel_out_llr(matrix_t* codeword, float crossover_p){
     for (int i = 0; i < out->col_size; i++)
     {
         float r = (float)rand() / ((float)RAND_MAX);
-        cint_t elem = get_elem(out, 0, i);
+        int64_t elem = get_elem(out, 0, i);
         if(r < crossover_p){
             // Invert bit
-            elem.x = 1 - elem.x;
+            elem = 1 - elem;
         }
-        elem.x = elem.x ? DEFAULT_LLR : (-DEFAULT_LLR);
+        elem = elem ? DEFAULT_LLR : (-DEFAULT_LLR);
         put_elem(out, 0, i, elem);
     }
     return out;

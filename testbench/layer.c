@@ -11,6 +11,7 @@ matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* fro
     matrix_t* masked_input = mat_mul(from_input, layer.input_mask);
     matrix_t* masked_prev = mat_mul(from_prev_layer, layer.prev_layer_mask);
     matrix_t* sum = mat_sum(masked_input, masked_prev);
+    mat_apply_saturation(sum);
 
     free_mat(&masked_input);
     free_mat(&masked_prev);
@@ -28,13 +29,13 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     matrix_t* signs = create_mat(NULL, 1, layer.prev_layer_mask->row_size, 0);
     for (int i = 0; i < layer.prev_layer_mask->row_size; i++)
     {
-        cint_t curr_sign = {1};
+        int64_t curr_sign = 1;
         
         for (int j = 0; j < layer.prev_layer_mask->col_size; j++)
         {
-            if(mul(get_elem(layer.prev_layer_mask, i, j),
-                get_elem(from_prev_layer, 0, j)).x < 0){
-                curr_sign.x *= -1;
+            if(get_elem(layer.prev_layer_mask, i, j) * 
+                get_elem(from_prev_layer, 0, j) < 0){
+                curr_sign *= -1;
             }
         }
         put_elem(signs, 0, i, curr_sign);
@@ -44,18 +45,18 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     matrix_t* minimum = create_mat(NULL, 1, layer.prev_layer_mask->row_size, 0);
     for (int i = 0; i < layer.prev_layer_mask->row_size; i++)
     {
-        cint_t curr_min = {CINT_MAX};
+        int64_t curr_min = INT64_MAX;
         
         for (int j = 0; j < layer.prev_layer_mask->col_size; j++)
         {
             // Skip if not connected
-            if(get_elem(layer.prev_layer_mask, i, j).x == 0){
+            if(get_elem(layer.prev_layer_mask, i, j) == 0){
                 continue;
             }
             // Check abs value against minimum
-            int x = abs(get_elem(from_prev_layer, 0, j).x);
-            if(curr_min.x > x){
-                curr_min.x = x;
+            int64_t x = abs(get_elem(from_prev_layer, 0, j));
+            if(curr_min > x){
+                curr_min = x;
             }
 
         }
@@ -65,6 +66,7 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     // Final matrix
     matrix_t* post_processing = mat_pointwise_mul(signs, minimum);
     matrix_t* final = mat_sum(post_processing, layer.biases);
+    mat_apply_saturation(final);
     
     free_mat(&signs);
     free_mat(&minimum);

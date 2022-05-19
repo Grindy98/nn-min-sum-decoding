@@ -11,11 +11,11 @@ def get_array(arr, arr_name):
     if len(arr.shape) != 2:
         raise ValueError("Numpy array has to be a matrix")
     ret = ''
-    ret += f'cint_t {arr_name}[] = {{\n'
+    ret += f'int64_t {arr_name}[] = {{\n'
     row_list = []
     for i in range(arr.shape[0]):
         row = '\t'
-        row += ', '.join([f'{{{x}}}' for x in arr[i, :]])
+        row += ', '.join([f'{x}' for x in arr[i, :]])
         row_list.append(row)
     ret += ',\n'.join(row_list)
     ret += '\n};\n'

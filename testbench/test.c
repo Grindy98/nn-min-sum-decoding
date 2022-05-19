@@ -20,18 +20,18 @@ int main(){
     matrix_t* prev_mat_mask;
     matrix_t* bias_mat;
     {
-        cint_t inp_arr[] = {{1}, {2}, {3}};
-        cint_t prev_arr[] = {{1}, {2}, {3}, {4}, {5}};
-        cint_t inp_arr_mask[] = {{1}, {0}, {0}, {0}, {0},
-                                 {1}, {1}, {0}, {0}, {0},
-                                 {0}, {1}, {1}, {1}, {1}};
+        int64_t inp_arr[] = {1, 2, 3};
+        int64_t prev_arr[] = {1, 2, 3, 4, 5};
+        int64_t inp_arr_mask[] = {1 , 0, 0, 0, 0,
+                                  1 , 1, 0, 0, 0,
+                                  0 , 1, 1, 1, 1};
 
-        cint_t prev_arr_mask[] = {{1}, {0}, {0}, {0}, {0},
-                                  {1}, {1}, {0}, {0}, {0},
-                                  {0}, {1}, {1}, {0}, {1},
-                                  {0}, {1}, {0}, {0}, {1},
-                                  {0}, {1}, {0}, {1}, {0}};
-        cint_t bias_arr[] = {{0}, {1}, {-1}, {0}, {1}};
+        int64_t prev_arr_mask[] = {1, 0, 0, 0, 0,
+                                   1, 1, 0, 0, 0,
+                                   0, 1, 1, 0, 1,
+                                   0, 1, 0, 0, 1,
+                                   0, 1, 0, 1, 0};
+        int64_t bias_arr[] = {0, 1, -1, 0, 1};
         inp_mat = create_mat(inp_arr, 1, 3, 0);
         prev_mat = create_mat(prev_arr, 1, 5, 0);
         inp_mat_mask = create_mat(inp_arr_mask, 3, 5, 1);
