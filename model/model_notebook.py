@@ -297,6 +297,6 @@ int_model.evaluate(
 
 # %%
 # Save biases
-np.save('../data/biases.npy', bias_arr)
+np.save('../data/biases.npy', bias_arr_casted)
 
 # %%
