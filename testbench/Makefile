@@ -7,7 +7,7 @@ BIN = testbench
 BUILD_DIR = ./build
 
 # List of all .c source files.
-C = test.c $(wildcard *.c) 
+C = test.c $(wildcard *.c) adj_matrix_wrapper.c
 
 # All .o files go to build dir.
 OBJ = $(C:%.c=$(BUILD_DIR)/%.o)
@@ -33,8 +33,8 @@ $(BUILD_DIR)/%.o : %.c
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
 
 # Specific build targets
-adj_matrix_wrapper.c adj_matrix_wrapper.h : ../data/adj_matrices.npz codegen.py
-	python3 codegen.py ../data/adj_matrices.npz -o adj_matrix_wrapper
+adj_matrix_wrapper.c : ../data/adj_matrices.npz ../data/biases.npy codegen.py
+	python3 codegen.py ../data/adj_matrices.npz ../data/biases.npy -o adj_matrix_wrapper
 
 .PHONY : clean
 clean :
