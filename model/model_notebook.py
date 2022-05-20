@@ -151,7 +151,7 @@ def convert_to_int(arr):
     arr = arr * (2 ** DECIMAL_POINT_BIT)
     arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
     arr = np.rint(arr)
-    return arr
+    return arr.astype('int32')
 
 
 # %%
@@ -282,6 +282,7 @@ model.evaluate(
 # Extract biases
 bias_arr = get_bias_arr(model)
 bias_arr_casted = convert_to_int(bias_arr)
+bias_arr_casted.dtype
 
 # %%
 # Test biases
@@ -297,3 +298,5 @@ int_model.evaluate(
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr)
+
+# %%
