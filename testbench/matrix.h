@@ -21,6 +21,7 @@ void put_elem(matrix_t* mat, int row, int col, int64_t elem);
 
 void mat_apply_saturation(matrix_t* A);
 
+matrix_t* mat_extract(matrix_t* A, int row, int col);
 matrix_t* mat_mul(matrix_t* A, matrix_t* B);
 matrix_t* mat_sum(matrix_t* A, matrix_t* B);
 matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B);

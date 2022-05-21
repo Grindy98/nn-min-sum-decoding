@@ -86,6 +86,29 @@ void mat_apply_saturation(matrix_t* A){
     }
 }
 
+matrix_t* mat_extract(matrix_t* A, int row, int col){
+    if(!check_range(A, row == -1 ? 0 : row, col == -1 ? 0 : col)){
+        printf("Invalid range for row/col extraction\n");
+        exit(1);
+    }
+
+    matrix_t* new_mat = create_mat(NULL, row == -1 ? A->row_size : 1, col == -1 ? A->col_size : 1, A->is_mod_two);
+    for(int i = 0; i < A->row_size; i++){
+        if(row != -1 && row != i){
+            continue;
+        }
+        int ii = row == -1 ? i : 0;
+        for(int j = 0; j < A->col_size; j++){
+            if(col != -1 && col != j){
+                continue;
+            }
+            int jj = col == -1 ? j : 0;
+            put_elem(new_mat, ii, jj, get_elem(A, i, j));
+        }
+    }
+    return new_mat;
+}
+
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
     if(A->col_size != B->row_size){
         printf("Matrices must have same inner rank\n");

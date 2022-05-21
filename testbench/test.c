@@ -38,6 +38,11 @@ int main(){
         prev_mat_mask = create_mat(prev_arr_mask, 5, 5, 1);
         bias_mat = create_mat(bias_arr, 1, 5, 0);
     }
+    display_mat(inp_mat_mask);
+    matrix_t* extracted_mat = mat_extract(inp_mat_mask, -1, 0);
+    printf("\n");
+    display_mat(extracted_mat);
+    printf("Layer test\n");
     // Odd layer test
     oddlayer_t oddl;
     oddl.input_mask = inp_mat_mask;
@@ -54,13 +59,14 @@ int main(){
     evenl.biases = bias_mat;
     out = process_evenlayer(evenl, prev_mat);
     display_mat(out);
- 
+
     printf("Channel tests\n");
     matrix_t* cw = generate_random_codeword(inp_mat_mask);
     display_mat(cw);
     matrix_t* llr_cw = channel_out_llr(cw, 0.2);
     display_mat(llr_cw);
 
+    free_mat(&extracted_mat);
     free_mat(&llr_cw);
     free_mat(&cw);
     free_mat(&out);
