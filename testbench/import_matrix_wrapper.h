@@ -1,5 +1,5 @@
-#ifndef ADJ_MATRIX_WRAPPER
-#define ADJ_MATRIX_WRAPPER
+#ifndef IMPORT_MATRIX_WRAPPER
+#define IMPORT_MATRIX_WRAPPER
 #include "matrix.h"
 
 extern matrix_t* odd_prev_layer_mask_mat;

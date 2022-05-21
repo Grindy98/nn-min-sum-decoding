@@ -6,7 +6,7 @@
 #include "matrix.h"
 #include "layer.h"
 #include "channel.h"
-#include "adj_matrix_wrapper.h"
+#include "import_matrix_wrapper.h"
 
 int main(){
     // Seed for rng
