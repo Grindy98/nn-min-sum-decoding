@@ -108,61 +108,6 @@ def loss_wrapper(n_v, e_clip=1e-10):
 
 
 # %%
-import keras.backend as K 
-from utils import encode
-
-# Generator matrix for shape and creation of codewords
-def datagen_creator(gen_matrix, data_limit=1000000):
-    def datagen(batch_size, p, zero_only=True):
-        neg_llr = prob_to_llr(0.01)
-        pos_llr = -neg_llr
-        for _ in range(data_limit):
-            input_shape = (batch_size, gen_matrix.shape[0])
-            if zero_only:
-                y = galois.GF2(np.zeros(input_shape, dtype=int))
-            else:
-                y = galois.GF2(np.random.choice([0, 1], size=input_shape))
-
-            # Transform dataword to codeword
-            y = y @ gen_matrix
-
-            # This is the binary symmetric channel mask
-            mask = galois.GF2(np.random.choice([0, 1], size=y.shape, p=[1-p, p]))
-            x = y + mask
-
-            # Transform from bool to llr
-            x = np.where(x, pos_llr, neg_llr)
-            y = np.where(y, pos_llr, neg_llr)
-            x = x.astype('float32')
-            y = y.astype('float32')
-            yield x, y
-    return datagen;
-        
-
-
-# %%
-model, n_v = create_model(G, 5)
-# model.summary()
-
-# %%
-def generate_adj_matrix_data(tanner_graph):
-    data_out = {
-        'odd_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'v'),
-        'odd_inp_layer_mask': layers._create_input_layer_mask(tanner_graph),
-        'even_prev_layer_mask': layers._create_prev_layer_mask(tanner_graph, 'c'),
-        'output_mask': layers._create_final_layer_mask(tanner_graph),
-    }
-    return {k: np.array(v, dtype=int) for k, v in data_out.items()}
-        
-
-
-# %%
-np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
-
-# %%
-# tf.keras.utils.plot_model(model, show_shapes=True)
-
-# %%
 from tensorflow.keras.optimizers import Adam
 
 from metrics import BER, FER
@@ -339,53 +284,16 @@ bias_arr = get_bias_arr(model)
 bias_arr_casted = convert_to_int(bias_arr)
 bias_arr_casted.dtype
 
-
 # %%
 # Test biases
 int_model, n_v = get_compiled_model(G, BF_ITERS)
 set_bias_arr(int_model, bias_arr_casted.astype('float64'))
-
-        G, pos = get_tanner_graph(mat)
-        gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(mat))
-        if not identity:
-            model, n_v = create_model(G, 5)
-            model.compile(
-                optimizer=adam,
-                loss=loss_wrapper(n_v)
-            )
-            gen = datagen_creator(gen_mat)(120, p)
-            model.fit(
-                x=gen,
-                epochs=10,
-                verbose="auto",
-                callbacks=None,
-                validation_split=0.0,
-                validation_data=None,
-                shuffle=True,
-                class_weight=None,
-                sample_weight=None,
-                initial_epoch=0,
-                steps_per_epoch=50,
-                validation_steps=None,
-                validation_batch_size=None,
-                validation_freq=1,
-                max_queue_size=10,
-                workers=1,
-                use_multiprocessing=False,
-            )
-            stats.append(get_stats_model(model, datagen_creator(gen_mat), p))
-        else:
-            # Mockup model with no change
-            stats.append(get_stats_model(None, datagen_creator(gen_mat), p))
-    return stats
-
 
 # %%
 int_model.evaluate(
     x=datagen_creator(gen_mat)(120, p, zero_only=False, test_int=True),
     steps=100 
 )
-
 
 # %%
 # Save biases
