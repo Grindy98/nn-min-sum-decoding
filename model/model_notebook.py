@@ -232,6 +232,7 @@ nx.draw_networkx(G, pos)
 
 # %%
 np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
+np.save('../data/generator.npy', gen_mat)
 
 # %% [markdown]
 # ## Model Compile and Fit
