@@ -13,7 +13,7 @@ int main(){
     srand(time(0));
 
     init_adj_mats();
-
+    
     matrix_t* inp_mat;
     matrix_t* prev_mat;
     matrix_t* inp_mat_mask;
@@ -38,26 +38,20 @@ int main(){
         prev_mat_mask = create_mat(prev_arr_mask, 5, 5, 1);
         bias_mat = create_mat(bias_arr, 1, 5, 0);
     }
-    display_mat(inp_mat_mask);
-    matrix_t* extracted_mat = mat_extract(inp_mat_mask, -1, 0);
-    printf("\n");
-    display_mat(extracted_mat);
     printf("Layer test\n");
-    // Odd layer test
-    oddlayer_t oddl;
-    oddl.input_mask = inp_mat_mask;
-    oddl.prev_layer_mask = prev_mat_mask;
-    display_mat(inp_mat);
-    display_mat(prev_mat);
-    matrix_t* out = process_oddlayer(oddl, inp_mat, prev_mat);
-    display_mat(out);
-    free_mat(&out);
+    model_t model;
+    model.biases = biases_mat;
+    model.input_mask = odd_inp_layer_mask_mat;
+    model.output_mask = output_mask_mat;
+    model.prev_even_layer_mask = even_prev_layer_mask_mat;
+    model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
 
-    // Even layer test
-    evenlayer_t evenl;
-    evenl.prev_layer_mask = prev_mat_mask;
-    evenl.biases = bias_mat;
-    out = process_evenlayer(evenl, prev_mat);
+    int64_t in_arr[] = {5, 5, 5, 5, 5, 
+                        5, 5, 5, 5, 5, 
+                        5, 5, 5, 5, 5};
+    matrix_t* in = create_mat(in_arr, 1, 15, 0); 
+
+    matrix_t* out = process_model(model, in);
     display_mat(out);
 
     printf("Channel tests\n");
@@ -66,7 +60,7 @@ int main(){
     matrix_t* llr_cw = channel_out_llr(cw, 0.2);
     display_mat(llr_cw);
 
-    free_mat(&extracted_mat);
+    free_mat(&in);
     free_mat(&llr_cw);
     free_mat(&cw);
     free_mat(&out);

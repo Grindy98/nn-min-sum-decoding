@@ -111,7 +111,8 @@ matrix_t* mat_extract(matrix_t* A, int row, int col){
 
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
     if(A->col_size != B->row_size){
-        printf("Matrices must have same inner rank\n");
+        printf("Matrices must have same inner rank: %d != %d\n",
+            A->col_size, B->row_size);
         exit(1);
     }
     // If both matrices are mod two, resul is also mod two
@@ -141,7 +142,8 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_sum(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        printf("Matrices must have same ranks\n");
+        printf("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+            A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
     // If both matrices are mod two, resul is also mod two
@@ -154,7 +156,7 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
     {
         for (int j = 0; j < new_col; j++)
         {
-            int64_t new_sum = get_elem(A, i, j) * get_elem(B, i, j);
+            int64_t new_sum = get_elem(A, i, j) + get_elem(B, i, j);
             put_elem(new_mat, i, j, mod_two_flag ? (new_sum % 2) : new_sum);
         }
         
@@ -165,7 +167,8 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        printf("Matrices must have same ranks\n");
+        printf("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+            A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
     int new_row = A->row_size;
