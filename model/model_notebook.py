@@ -205,8 +205,14 @@ def generate_adj_matrix_data(tanner_graph):
 # ## Configurations
 
 # %%
+galois.bch_valid_codes(15)
+
+# %%
 # active_mat = H_32_44
 active_mat = BCH_16_31
+active_mat = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
 DECIMAL_POINT_BIT = 4
 INT_SIZE = 8
@@ -229,6 +235,9 @@ G, pos = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 
 nx.draw_networkx(G, pos)
+
+# %%
+convert_to_int(-prob_to_llr(p))
 
 # %%
 np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
@@ -299,5 +308,24 @@ int_model.evaluate(
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr_casted)
+
+# %%
+gen = datagen_creator(gen_mat)(1, p, zero_only=True, test_int=True)
+
+# %%
+while True:
+    y_inp, y_true = next(gen)
+    if tf.reduce_sum(np.where(y_inp >= 0, 1, 0)) >= 2:
+        break
+np.where(y_inp >= 0, 1, 0)
+
+# %%
+np.where(int_model.predict(y_inp) >= 0, 1, 0)
+
+# %%
+int_model.predict(y_inp)
+
+# %%
+np.save('../data/input_test.npy', np.where(y_inp >= 0, 1, 0))
 
 # %%

@@ -54,12 +54,10 @@ int main(){
     model.prev_even_layer_mask = even_prev_layer_mask_mat;
     model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
 
-    int64_t in_arr[] = {5, 5, 5, 5, 5, 
-                        5, 5, 5, 5, 5, 
-                        5, 5, 5, 5, 5};
-    matrix_t* in = create_mat(in_arr, 1, 15, 0); 
+    display_mat(input_test_mat);
+    matrix_t* in = cast_to_llr(input_test_mat);
 
-    matrix_t* out = process_model(model, llr_cw);
+    matrix_t* out = process_model(model, in);
     display_mat(out);
     matrix_t* out_llr = cast_from_llr(out);
     display_mat(out_llr);

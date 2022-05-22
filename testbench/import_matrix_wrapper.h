@@ -8,6 +8,7 @@ extern matrix_t* even_prev_layer_mask_mat;
 extern matrix_t* output_mask_mat;
 extern matrix_t* biases_mat;
 extern matrix_t* generator_mat;
+extern matrix_t* input_test_mat;
 void init_adj_mats();
 void free_adj_mats();
 #endif
