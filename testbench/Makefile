@@ -33,8 +33,8 @@ $(BUILD_DIR)/%.o : %.c
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
 
 # Specific build targets
-import_matrix_wrapper.c : ../data/adj_matrices.npz ../data/biases.npy codegen.py
-	python3 codegen.py ../data/adj_matrices.npz ../data/biases.npy -o import_matrix_wrapper
+import_matrix_wrapper.c : ../data/adj_matrices.npz ../data/biases.npy ../data/generator.npy codegen.py
+	python3 codegen.py ../data/adj_matrices.npz ../data/biases.npy ../data/generator.npy -o import_matrix_wrapper
 
 .PHONY : clean
 clean :

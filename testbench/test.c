@@ -38,6 +38,14 @@ int main(){
         prev_mat_mask = create_mat(prev_arr_mask, 5, 5, 1);
         bias_mat = create_mat(bias_arr, 1, 5, 0);
     }
+
+
+    printf("Channel tests\n");
+    matrix_t* cw = generate_random_codeword(generator_mat);
+    display_mat(cw);
+    matrix_t* llr_cw = channel_out_llr(cw, 0.01);
+    display_mat(llr_cw);
+
     printf("Layer test\n");
     model_t model;
     model.biases = biases_mat;
@@ -51,19 +59,16 @@ int main(){
                         5, 5, 5, 5, 5};
     matrix_t* in = create_mat(in_arr, 1, 15, 0); 
 
-    matrix_t* out = process_model(model, in);
+    matrix_t* out = process_model(model, llr_cw);
     display_mat(out);
-
-    printf("Channel tests\n");
-    matrix_t* cw = generate_random_codeword(inp_mat_mask);
-    display_mat(cw);
-    matrix_t* llr_cw = channel_out_llr(cw, 0.2);
-    display_mat(llr_cw);
+    matrix_t* out_llr = cast_from_llr(out);
+    display_mat(out_llr);
 
     free_mat(&in);
     free_mat(&llr_cw);
     free_mat(&cw);
     free_mat(&out);
+    free_mat(&out_llr);
     free_mat(&inp_mat);
     free_mat(&prev_mat);
     free_mat(&inp_mat_mask);
