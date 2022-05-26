@@ -1,4 +1,7 @@
-*/test/
+**/test/
 .ipynb_checkpoints
+.vscode
 __pycache__
 *.ipynb
+**/build/
+import_matrix_wrapper.c
