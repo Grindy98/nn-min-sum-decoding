@@ -2,6 +2,7 @@
 `define RESET_VAL 1
 
 // Even layer
+// will be generated
 module check_nodes 
     #(  parameter WIDTH = 8,
         parameter E = 147)

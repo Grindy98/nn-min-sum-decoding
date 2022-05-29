@@ -2,6 +2,7 @@
 `define RESET_VAL 1
 
 // Odd layer
+// will be generated
 module variable_nodes
     #(  parameter WIDTH = 8,
         parameter N_V = 44,
