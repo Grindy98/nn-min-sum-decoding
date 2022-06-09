@@ -1,5 +1,4 @@
-`timescale 1ns / 1ps
-`define RESET_VAL 1
+`include "ct.vh"
 
 module saturate
 	#( parameter WIDTH = 8,
@@ -12,7 +11,7 @@ module saturate
 	always @* begin
         if ( in[MSB : MSB - EXTENDED_BITS] == {(EXTENDED_BITS + 1){1'b0}} ||
              in[MSB : MSB - EXTENDED_BITS] == {(EXTENDED_BITS + 1){1'b1}} ) begin
-
+    
             out = in[MSB - EXTENDED_BITS : 0];
         end
         else if ( in[MSB] == 1'b0 ) begin

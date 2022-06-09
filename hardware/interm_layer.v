@@ -1,6 +1,4 @@
-`timescale 1ns / 1ps
-`define RESET_VAL 1
-
+`include "ct.vh"
 
 module interm_layer
     #(  parameter WIDTH = 8,

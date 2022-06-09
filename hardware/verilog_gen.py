@@ -8,8 +8,9 @@ import ct
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-i', type=str, nargs='+')
-parser.add_argument('-o', type=str, nargs=1)
+parser.add_argument('-i', type=str, nargs='+', help='path to needed input file(s)')
+parser.add_argument('-var_o', type=str, nargs=1, help='name of the variable nodes module')
+parser.add_argument('-check_o', type=str, nargs=1, help='name of the check nodes module')
 
 
 def add_parameters(params):
@@ -120,32 +121,56 @@ def build_varn_source(adj_mat_dict, file_name):
 
     return src
 
-# atm, just try to generate the even_layer
+
+def build_checkn_source(adj_mat_dict, file_name):
+    # extract the number of variable nodes and the number of edges from adj_mat_dict
+    n_edges = adj_mat_dict['even_prev_layer_mask'].shape[1]
+
+    src = ''
+    src += '`timescale 1ns / 1ps\n'
+    src += f'`define RESET_VAL {ct.RESET_VAL}\n\n'
+
+    # define the module itself
+    src += f'module {file_name}\n'
+
+    # add the parameters
+    # get no of edge and variables from adj matrices
+    src += add_parameters([('WIDTH', ct.WIDTH),
+                           ('E', n_edges)])
+
+    # add the ports
+    src += '\t( input clk, rst,\n' +\
+            '\t  input prev_ready,\n' +\
+            '\t  input [WIDTH * E - 1 : 0] prev_proc_elem,\n' +\
+            '\t  output [WIDTH * E - 1 : 0] proc_elem,\n' +\
+            '\t  output reg checkn_ready);\n\n'
+
+    # close the module
+    src += 'endmodule\n'
+
+    return src
+
+
 def main():
-    # args.o[0] should be the file name of the generated verilog source
-    # args.i should be the files containing the adjacency matrices
     args = parser.parse_args()
+    data = {}
 
-    if len(sys.argv) < 3:
-        print('Not enough arguments given')
-        return
+    for inp in args.i:
+        with open(inp, 'rb') as infile:
+            if os.path.splitext(inp)[1] == '.npz':
+                data.update(np.load(infile).items())
+            else:
+                raise argparse.ArgumentError('Input files do not have proper format')
 
-    with open(args.o[0] + '.v', 'w') as out_file:
-        data = {}
+    # generate the variable nodes module
+    with open(args.var_o[0] + '.v', 'w') as out_file_v:
+        source_out = build_varn_source(data, args.var_o[0])
+        out_file_v.write(source_out)
 
-        for inp in args.i:
-            with open(inp, 'rb') as infile:
-                if os.path.splitext(inp)[1] == '.npz':
-                    data.update(np.load(infile).items())
-                else:
-                    raise argparse.ArgumentError('Input files do not have proper format')
-
-        source_out = build_varn_source(data, args.o[0])
-
-        # print(data)
-        # print('\n')
-        # print(source_out)
-        out_file.write(source_out)
+    # generate the check nodes module
+    with open(args.check_o[0] + '.v', 'w') as out_file_c:
+        source_out = build_checkn_source(data, args.check_o[0])
+        out_file_c.write(source_out)
 
 
 if __name__ == '__main__':

@@ -5,3 +5,6 @@ __pycache__
 *.ipynb
 **/build/
 import_matrix_wrapper.c
+/hardware/variable_nodes.v
+/hardware/check_nodes.v
+/hardware/*_tb.v
