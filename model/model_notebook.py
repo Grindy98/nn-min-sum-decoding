@@ -206,7 +206,10 @@ def generate_adj_matrix_data(tanner_graph):
 
 # %%
 # active_mat = H_32_44
-active_mat = BCH_16_31
+# active_mat = BCH_16_31
+active_mat = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
 DECIMAL_POINT_BIT = 4
 INT_SIZE = 8
