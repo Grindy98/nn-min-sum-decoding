@@ -244,11 +244,14 @@ def main():
     with open(args.var_o[0] + '.v', 'w') as out_file_v:
         source_out = build_varn_source(data, args.var_o[0])
         out_file_v.write(source_out)
+        print(f"Written {args.var_o[0] + '.v'}")
 
     # generate the check nodes module
     with open(args.check_o[0] + '.v', 'w') as out_file_c:
         source_out = build_checkn_source(data, args.check_o[0])
         out_file_c.write(source_out)
+        print(f"Written {args.check_o[0] + '.v'}")
+
 
 
 if __name__ == '__main__':
