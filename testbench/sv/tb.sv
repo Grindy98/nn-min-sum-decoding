@@ -20,20 +20,25 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 interface decoder_interface
-    #(  parameter WIDTH = 8,
+    #(  parameter WIDTH_IN = 8,
         parameter N_LLRS = 4,
+        parameter WIDTH_OUT = 8,
         parameter N_ITER = 5,
         parameter N_V = 31,
         parameter E = 140)
     ( input clk, rst);
-      logic [N_LLRS * WIDTH - 1 : 0] llr;
+      logic [N_LLRS * WIDTH_IN - 1 : 0] databus_in;
+      logic [WIDTH_OUT - 1 : 0] databus_out;
+      
       logic first_data;
       logic data_valid;
-     
-      logic [N_V - 1 : 0] dw_out;
+      
       logic first_data_out;
+      logic [N_V - 1 : 0] dw_out;
       logic data_valid_out;
       logic out_ready;
+      
+      logic busy;
 endinterface
 
 module tb();
@@ -52,6 +57,7 @@ endfunction
 
 localparam LLR_SIZE = 8;
 localparam N_V = 15;
+localparam N_V_HW = 14;
 localparam E = 38;
 localparam cross_p = 0.01;
 
@@ -59,8 +65,9 @@ reg clk;
 reg rst;
 
 decoder_interface #(
-    .WIDTH(LLR_SIZE),
-    .N_V(N_V),
+    .WIDTH_IN(LLR_SIZE),
+    .WIDTH_OUT(LLR_SIZE),
+    .N_V(N_V_HW),
     .E(E)
 )dut_i(
     .clk(clk),
@@ -68,7 +75,8 @@ decoder_interface #(
 );
 
 decoder_top #(
-    .WIDTH(dut_i.WIDTH),
+    .WIDTH_IN(dut_i.WIDTH_IN),
+    .WIDTH_OUT(dut_i.WIDTH_OUT),
     .N_LLRS(dut_i.N_LLRS),
     .N_ITER(dut_i.N_ITER),
     .N_V(dut_i.N_V),
@@ -76,11 +84,12 @@ decoder_top #(
 ) dut (
     .clk(dut_i.clk),
     .rst(dut_i.rst),
-    .llr(dut_i.llr),
+    .databus_in(dut_i.databus_in),
     .first_data(dut_i.first_data),
     .data_valid(dut_i.data_valid),
-    .dw_out(dut_i.dw_out),
+    .busy(dut_i.busy),
     .first_data_out(dut_i.first_data_out),
+    .databus_out(dut_i.databus_out),
     .data_valid_out(dut_i.data_valid_out),
     .out_ready(dut_i.out_ready)
 );
@@ -95,19 +104,19 @@ initial begin
     // Initialize input data of interface
     dut_i.data_valid = 0;
     dut_i.first_data = 0;
-    dut_i.llr = 0;
+    dut_i.databus_in = 0;
     #200 rst = 0;
 end
 
 class cw_wrapper;
-    logic[N_V-1:0][LLR_SIZE-1:0] cw ;
+    logic[N_V_HW-1:0][LLR_SIZE-1:0] cw ;
 endclass
 
-mailbox gen_to_dut = new(5);
-mailbox dut_to_chk = new(5);
-mailbox gen_to_chk = new(5);
+mailbox gen_to_dut = new(2);
+mailbox dut_to_chk = new(2);
+mailbox gen_to_chk = new(2);
 
-logic[N_V-1:0][LLR_SIZE-1:0] debug_inp_cw;
+logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_in_cw;
 
 task generate_cw;
 //	call c function generate_cw, apply_channel 
@@ -129,11 +138,11 @@ task generate_cw;
             $display("Metaparameters don't match");
             $fatal(1);
         end
-        for (i=0; i<N_V; i=i+1) begin
+        for (i=0; i<N_V_HW; i=i+1) begin
             w.cw[i] = generated_cw[i];
         end
-        debug_inp_cw = w.cw;
         // Send to dut
+        debug_in_cw = w.cw;
         gen_to_dut.put(w);
         // Get output from C model and send for checking
         pass_through_model(generated_cw, passed_cw);
@@ -144,6 +153,8 @@ task generate_cw;
     
 endtask 
 
+logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_driver_input;
+
 task drive_dut;
     cw_wrapper w;
     automatic bit is_writing = 0;
@@ -153,6 +164,11 @@ task drive_dut;
         @(negedge clk);
         dut_i.data_valid = 0;
         if(is_writing == 0) begin
+            // If device busy but not writing, skip cycle
+            if(dut_i.busy == 1) begin
+                continue;
+            end
+            // If no message, skip cycle
             if(gen_to_dut.try_get(w) == 0) begin
                 continue;
             end
@@ -160,24 +176,28 @@ task drive_dut;
                 is_writing = 1;
                 llr_index = dut_i.N_V-1;
             end
+            debug_driver_input = w.cw;
         end
         // We reach this point only if we currently have to write
         
         // Initialize various ports of interface
-        dut_i.llr = 0;
+        dut_i.databus_in = 0;
+        dut_i.first_data = 0;
         if(llr_index == dut_i.N_V-1) begin
             dut_i.first_data = 1;
         end
-        else begin
-            dut_i.first_data = 0;
-        end
-        for(int i = dut_i.N_LLRS-1;  i >= 0; i -= 1) begin
+        $display("AAAAAAAA TIME %t", $time);
+        $displayh(w.cw);
+        for(int i = dut_i.N_LLRS-1; i >= 0; i -= 1) begin
             if(llr_index < 0) begin
                 is_writing = 0;
                 break;
             end
-            dut_i.llr = dut_i.llr << dut_i.WIDTH;
-            dut_i.llr[dut_i.WIDTH-1 : 0] = w.cw[llr_index];
+            dut_i.databus_in = dut_i.databus_in << dut_i.WIDTH_IN;
+            dut_i.databus_in[dut_i.WIDTH_IN-1 : 0] = w.cw[llr_index];
+            $display("W TIME %t", $time);
+            $displayh(dut_i.databus_in);
+            $display(llr_index);
             llr_index -= 1;
         end
         // LLR chunk ready to be sent
