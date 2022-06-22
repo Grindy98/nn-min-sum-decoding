@@ -22,9 +22,18 @@
 set orig_dir [pwd]
 try {
 	set src_dir "D:/Projects/Matlab/NN_BP_BCH/nn-min-sum-decoding/testbench/c"
+	# Generate c import_matrix file
+	exec ${src_dir}/generate.bat
+	
 	set proj_name [current_project]
 	set proj_path [get_property DIRECTORY [current_project]]
 	cd ${proj_path}
+
+	if {[catch {file delete -force "${proj_path}/${proj_name}.sim"} errmsg]} {
+		puts "ErrorMsg: $errmsg"
+		puts "ErrorCode: $errorCode"
+		puts "ErrorInfo:\n$errorInfo\n"
+	}
 	set path_work "${proj_path}/${proj_name}.sim/sim_1/behav/xsim"
 	puts [file normalize "."]
 	puts [file normalize ${proj_path}]
@@ -51,5 +60,4 @@ try {
 	cd ${orig_dir}
 	puts "-------------------------DONE------------------------"
 }
-
 

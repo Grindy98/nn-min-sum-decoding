@@ -67,7 +67,7 @@ decoder_interface #(
     .rst(rst)
 );
 
-decoder_top_test #(
+decoder_top #(
     .WIDTH(dut_i.WIDTH),
     .N_LLRS(dut_i.N_LLRS),
     .N_ITER(dut_i.N_ITER),
