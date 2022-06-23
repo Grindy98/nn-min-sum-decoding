@@ -28,21 +28,21 @@ try {
 	set proj_name [current_project]
 	set proj_path [get_property DIRECTORY [current_project]]
 	cd ${proj_path}
+	
+	set prop_value_list [list -sv_root ${proj_path}/xsim.dir/work/xsc -sv_lib dpi]
+	set_property -name {xsim.elaborate.xelab.more_options} -value $prop_value_list -objects [get_filesets sim_1]
 
 	if {[catch {file delete -force "${proj_path}/${proj_name}.sim"} errmsg]} {
 		puts "ErrorMsg: $errmsg"
 		puts "ErrorCode: $errorCode"
 		puts "ErrorInfo:\n$errorInfo\n"
 	}
-	set path_work "${proj_path}/${proj_name}.sim/sim_1/behav/xsim"
 	puts [file normalize "."]
-	puts [file normalize ${proj_path}]
 	if {[file normalize "."] != [file normalize ${proj_path}]} {
 		puts "--------------------PATH WRONG---------------------"
 		error "path" "Paths don't match" 1 
 	}
 
-	file mkdir ${path_work}
 	puts "--------------------C COMPILE---------------------"
 	if {[glob -nocomplain -d $src_dir *.c] != ""} {
 		puts "Compiling C files"
@@ -51,8 +51,6 @@ try {
 		   puts "ErrorCode: $errorCode"
 		   puts "ErrorInfo:\n$errorInfo\n"
 		}
-		puts [file copy -force ./xsim.dir/work/xsc/dpi.a ${path_work}/dpi.a] 
-		
 	}
 
 } finally {
