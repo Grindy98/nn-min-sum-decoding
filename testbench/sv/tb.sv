@@ -41,6 +41,12 @@ interface decoder_interface
       logic busy;
 endinterface
 
+class cw_wrapper #(
+    parameter N_V_HW,
+    parameter LLR_SIZE);
+    logic[N_V_HW-1:0][LLR_SIZE-1:0] cw ;
+endclass
+
 module tb();
 
 import "DPI-C" function void before_start(); 
@@ -57,7 +63,8 @@ endfunction
 
 localparam LLR_SIZE = 8;
 localparam N_V = 15;
-localparam N_V_HW = 14;
+localparam N_V_HW = N_V;
+localparam WIDTH_OUT = LLR_SIZE;
 localparam E = 38;
 localparam cross_p = 0.01;
 
@@ -66,7 +73,7 @@ reg rst;
 
 decoder_interface #(
     .WIDTH_IN(LLR_SIZE),
-    .WIDTH_OUT(LLR_SIZE),
+    .WIDTH_OUT(WIDTH_OUT),
     .N_V(N_V_HW),
     .E(E)
 )dut_i(
@@ -108,9 +115,7 @@ initial begin
     #200 rst = 0;
 end
 
-class cw_wrapper;
-    logic[N_V_HW-1:0][LLR_SIZE-1:0] cw ;
-endclass
+
 
 mailbox gen_to_dut = new(2);
 mailbox dut_to_chk = new(2);
@@ -119,6 +124,7 @@ mailbox gen_to_chk = new(2);
 logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_in_cw;
 
 task generate_cw;
+    
 //	call c function generate_cw, apply_channel 
 	
 //	put in mailbox (input)
@@ -126,18 +132,25 @@ task generate_cw;
 //	generate signals with c outputs
     int flag;
     int i; 
-    automatic cw_wrapper w = new();
+    automatic cw_wrapper #(
+        .N_V_HW(N_V_HW),
+        .LLR_SIZE(LLR_SIZE)
+    ) w;
     int generated_cw[N_V-1:0];
     logic passed_cw [N_V-1:0];
     logic [N_V-1:0] passed_cw_packed;
     logic [LLR_SIZE-1:0] cw_bit [N_V];
+    
     forever begin
         #500 $display("Generating signal");
+        
         flag = generate_noisy_cw(generated_cw, cross_p);
+        
         if(flag == 1) begin
             $display("Metaparameters don't match");
-            $fatal(1);
         end
+        
+        w = new();
         for (i=0; i<N_V_HW; i=i+1) begin
             w.cw[i] = generated_cw[i];
         end
@@ -145,21 +158,22 @@ task generate_cw;
         debug_in_cw = w.cw;
         gen_to_dut.put(w);
         // Get output from C model and send for checking
-        pass_through_model(generated_cw, passed_cw);
+        //pass_through_model(generated_cw, passed_cw);
         passed_cw_packed = {>>1{passed_cw}};
         gen_to_chk.put(passed_cw_packed);
-    end
-
-    
+        
+    end 
 endtask 
 
 logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_driver_input;
 
 task drive_dut;
-    cw_wrapper w;
+    automatic cw_wrapper #(
+        .N_V_HW(N_V_HW),
+        .LLR_SIZE(LLR_SIZE)
+    ) w;
     automatic bit is_writing = 0;
     automatic int llr_index = -1;
-    
     forever begin
         @(negedge clk);
         dut_i.data_valid = 0;
@@ -173,6 +187,7 @@ task drive_dut;
                 continue;
             end
             else begin
+                $display("-----------------WRITING STAGE BEGIN------------");
                 is_writing = 1;
                 llr_index = dut_i.N_V-1;
             end
@@ -186,19 +201,18 @@ task drive_dut;
         if(llr_index == dut_i.N_V-1) begin
             dut_i.first_data = 1;
         end
-        $display("AAAAAAAA TIME %t", $time);
-        $displayh(w.cw);
-        for(int i = dut_i.N_LLRS-1; i >= 0; i -= 1) begin
-            if(llr_index < 0) begin
-                is_writing = 0;
-                break;
-            end
+        forever begin
             dut_i.databus_in = dut_i.databus_in << dut_i.WIDTH_IN;
             dut_i.databus_in[dut_i.WIDTH_IN-1 : 0] = w.cw[llr_index];
-            $display("W TIME %t", $time);
-            $displayh(dut_i.databus_in);
-            $display(llr_index);
             llr_index -= 1;
+            // If index is divisible by chunk size, break
+            if((llr_index + 1) % dut_i.N_LLRS == 0) begin
+                break;
+            end
+        end
+        // Check for end
+        if(llr_index == -1) begin
+            is_writing = 0;
         end
         // LLR chunk ready to be sent
         dut_i.data_valid = 1;
@@ -209,9 +223,14 @@ task monitor_dut;
 //	extract signals 
 	
 //	put in mailbox (output) 
+    
     forever begin
         @(negedge clk);
-        //#500 $display("monitor");
+        // Drive first data signal to low unless writing
+        dut_i.first_data_out = 0;
+        if(dut_i.out_ready == 1) begin
+            dut_i.first_data_out = 1;
+        end
     end 
 endtask
 
