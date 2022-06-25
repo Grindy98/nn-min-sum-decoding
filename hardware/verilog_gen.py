@@ -95,14 +95,15 @@ def build_varn_source(adj_mat_dict, file_name):
             if adj_mat_dict['odd_inp_layer_mask'][prev_i][edge_i] == 1:
                 src += '\t\t\t' + f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
                         f'{{{{EXTENDED_BITS{{all_llrs[(WIDTH * {prev_i + 1}) - 1]}}}}, ' +\
-                        f'all_llrs[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}};\n'
+                        f'all_llrs[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}} \n'
 
         for prev_i in range(0, n_edges):
             if adj_mat_dict['odd_prev_layer_mask'][prev_i][edge_i] == 1:
-                src += '\t\t\t' + f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                        f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] + ' +\
-                        f'{{{{EXTENDED_BITS{{prev_proc_elem[(WIDTH * {prev_i + 1}) - 1]}}}}, ' +\
-                        f'prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}};\n'
+                src += '\t\t\t\t' + f'+ {{{{EXTENDED_BITS{{prev_proc_elem[(WIDTH * {prev_i + 1}) - 1]}}}}, ' +\
+                        f'prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}}\n'
+        
+        src = src[:-1] +';\n\n'
+
         src += '\n'
 
     src += '\t\t' + 'end\n'
