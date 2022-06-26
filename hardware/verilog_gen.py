@@ -34,6 +34,8 @@ def build_varn_source(adj_mat_dict, file_name):
     n_v = adj_mat_dict['odd_inp_layer_mask'].shape[0]
     src = ''
 
+    src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
+
     src += '`include "ct.vh"\n\n'
 
     # define the module itself
@@ -46,66 +48,53 @@ def build_varn_source(adj_mat_dict, file_name):
                            ('EXTENDED_BITS', 4)])
 
     # add the ports
-    src += '\t( input clk, rst,\n' +\
-            '\t  input data_ready,\n' +\
-            '\t  input prev_ready,\n' +\
-            '\t  input [WIDTH * N_V - 1 : 0] all_llrs,\n' +\
+    src +=  '\t( input [WIDTH * N_V - 1 : 0] all_llrs,\n' +\
             '\t  input [WIDTH * E - 1 : 0] prev_proc_elem,\n' +\
-            '\t  output [WIDTH * E - 1 : 0] proc_elem,\n' +\
-            '\t  output reg varn_ready);\n\n'
+            '\t  output [WIDTH * E - 1 : 0] proc_elem);\n\n'
 
     src += '\t' + 'localparam EXTENDED_WIDTH = WIDTH + EXTENDED_BITS;\n\n'
 
     # add registers
     # temp_reg will be used for the sum with saturation
-    src += '\t' + 'reg [EXTENDED_WIDTH * E - 1 : 0] temp_reg, temp_reg_nxt;\n\n'
+    src += '\t' + 'reg [EXTENDED_WIDTH * E - 1 : 0] temp_reg;\n\n'
 
     # instantiate the saturation module
     src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
             ' sat[E - 1 : 0] (.in(temp_reg), .out(proc_elem));\n\n'
 
-    # sequential logic segment
-    src += '\t' + 'always @(posedge clk) begin\n'
-
-    src += '\t\t' + 'if (rst == `RESET_VAL) begin\n'
-
-    src += '\t\t\t' + 'varn_ready <= 1\'b0;\n'
-
-    src += '\t\t' + 'end\n'
-
-    src += '\t\t' +'else if (prev_ready == 1 && data_ready == 1) begin\n'
-
-    src += '\t\t\t' + 'temp_reg <= temp_reg_nxt;\n\n'
-    src += '\t\t\t' + 'varn_ready <= 1\'b1;\n'
-
-    src += '\t\t' + 'end\n'
-
-    # close the always block
-    src += '\t' + 'end\n'
-
     # combinational logic segment
-    src += '\n\t' + 'always @* begin\n'
 
-    src += '\t\t' + 'temp_reg_nxt = temp_reg;\n\n'
-    src += '\t\t' + 'if (prev_ready == 1 && data_ready == 1) begin\n'
+    src += '\n\t' + 'always @* begin\n'
+    def generate_inp(prev_i, n_tabs):
+        return (
+            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{prev_i + 1}' ' - 1]} }, '
+            'all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+        )
+    
+    def generate_prev(prev_i, n_tabs):
+        return (
+            n_tabs*'\t' + '{ {EXTENDED_BITS{prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1]} }, '
+            'prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+        )
 
     # for every edge (node)
     for edge_i in range(0, n_edges):
+        src += '\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = \n'
+        inp_str_lst = []
         for prev_i in range(0, n_v):
             if adj_mat_dict['odd_inp_layer_mask'][prev_i][edge_i] == 1:
-                src += '\t\t\t' + f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                        f'{{{{EXTENDED_BITS{{all_llrs[(WIDTH * {prev_i + 1}) - 1]}}}}, ' +\
-                        f'all_llrs[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}};\n'
+                inp_str_lst.append(generate_inp(prev_i, 3))
 
+        prev_str_lst = []
         for prev_i in range(0, n_edges):
             if adj_mat_dict['odd_prev_layer_mask'][prev_i][edge_i] == 1:
-                src += '\t\t\t' + f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                        f'temp_reg_nxt[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] + ' +\
-                        f'{{{{EXTENDED_BITS{{prev_proc_elem[(WIDTH * {prev_i + 1}) - 1]}}}}, ' +\
-                        f'prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]}};\n'
-        src += '\n'
-
-    src += '\t\t' + 'end\n'
+                prev_str_lst.append(generate_prev(prev_i, 3))
+        
+        src += ' +\n\n'.join(filter(None, [
+            ' +\n'.join(inp_str_lst),
+            ' +\n'.join(prev_str_lst)
+        ]))
+        src += ';\n\n'
 
     # close the always block
     src += '\t' + 'end\n'
@@ -121,6 +110,8 @@ def build_checkn_source(adj_mat_dict, file_name):
     n_edges = adj_mat_dict['even_prev_layer_mask'].shape[1]
     src = ''
 
+    src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
+
     src += '`include "ct.vh"\n\n'
 
     # define the module itself
@@ -132,94 +123,65 @@ def build_checkn_source(adj_mat_dict, file_name):
                            ('EXTENDED_BITS', 4)])
 
     # add the ports
-    src += '\t( input clk, rst,\n' +\
-            '\t  input prev_ready,\n' +\
-            '\t  input bias_ready,\n' +\
-            '\t  input [WIDTH * E - 1 : 0] bias,\n' +\
-            '\t  input [WIDTH * E - 1 : 0] prev_proc_elem,\n' +\
-            '\t  output [WIDTH * E - 1 : 0] proc_elem,\n' +\
-            '\t  output reg checkn_ready);\n\n'
-
+    src += (
+            '\t( input [WIDTH * E - 1 : 0] bias,\n'
+            '\t  input [WIDTH * E - 1 : 0] prev_proc_elem,\n'
+            '\t  output [WIDTH * E - 1 : 0] proc_elem);\n\n'
+    )
     src += '\t' + 'localparam EXTENDED_WIDTH = WIDTH + EXTENDED_BITS;\n\n'
 
     # add registers
-    src += '\t' + 'reg [WIDTH - 1 : 0] abs_val;\n'
-    src += '\t' + 'reg [E - 1 : 0] reg_sign, reg_sign_nxt;\n'
-    src += '\t' + 'reg [WIDTH * E - 1 : 0] reg_min, reg_min_nxt;\n'
+    src += '\t' + 'reg [WIDTH * E - 1 : 0] abs_prev_proc_elem;\n'
+    src += '\t' + 'reg [E - 1 : 0] reg_sign;\n'
+    src += '\t' + 'reg [WIDTH * E - 1 : 0] reg_min;\n'
     src += '\t' + 'reg [EXTENDED_WIDTH * E - 1 : 0] temp_reg;\n\n'
-
+    src += '\t' + 'integer i;\n\n'
     # instantiate the saturation module
     src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
             ' sat[E - 1 : 0] (.in(temp_reg), .out(proc_elem));\n\n'
 
-    # sequential logic segment
-    src += '\t' + 'always @(posedge clk) begin\n'
-
-    src += '\t\t' + 'if (rst == `RESET_VAL) begin\n'
-
-    src += '\t\t\t' + 'checkn_ready <= 1\'b0;\n'
-
-    # set the minimums register as being the max positive number
-    src += '\t\t\t' + f'reg_min <= ~{{E{{1\'b1 << (EXTENDED_WIDTH - 1)}}}};\n'
-
-    src += '\t\t' + 'end\n'
-
-    src += '\t\t' +'else if (prev_ready == 1 && bias_ready == 1) begin\n'
-
-    src += '\t\t\t' + 'reg_sign <= reg_sign_nxt;\n'
-    src += '\t\t\t' + 'reg_min <= reg_min_nxt;\n\n'
-    src += '\t\t\t' + 'checkn_ready <= 1\'b1;\n'
-
-    src += '\t\t' + 'end\n'
-
-    # close the always block
-    src += '\t' + 'end\n'
-
     # combinational logic segment
     src += '\n\t' + 'always @* begin\n'
 
-    src += '\t\t' + 'reg_sign_nxt = reg_sign;\n'
-    src += '\t\t' + 'reg_min_nxt = reg_min;\n\n'
+    src += (
+        '\t\tfor(i = 1; i <= E; i = i + 1) begin \n'
+        '\t\t\tabs_prev_proc_elem[(WIDTH * i) - 1 -: WIDTH] = prev_proc_elem[(WIDTH * i) - 1] == 1\'b1 ?\n'
+        '\t\t\t-prev_proc_elem[(WIDTH * i) - 1 -: WIDTH] : prev_proc_elem[(WIDTH * i) - 1 -: WIDTH];\n'
+        '\t\tend\n\n'
 
-    src += '\t\t' + 'if (prev_ready == 1 && bias_ready == 1) begin\n'
+    )
 
     # for every edge (node)
     for edge_i in range(0, n_edges):
-        src += '\t\t\t' + f'//----- edge #{edge_i}\n'
+        src += '\t\t' + f'//----- edge #{edge_i}\n'
 
         for prev_i in range(0, n_edges):
             if adj_mat_dict['even_prev_layer_mask'][prev_i][edge_i] == 1:
-                # get the absolute value of the prev proc elem
-                # TODO probably a register with all of the absolute values will be needed
-                src += '\t\t\t' + f'abs_val = (prev_proc_elem[(WIDTH * {prev_i + 1}) - 1] == 1\'b1) ? -prev_proc_elem : prev_proc_elem;\n'
-
                 # get the minimum
-                src += '\t\t\t' + f'if (reg_min_nxt[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] > abs_val) begin\n'
-                src += '\t\t\t\t' + f'reg_min_nxt[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] = abs_val;\n'
-                src += '\t\t\t' + 'end\n'
+                src += '\t\t' + f'if (reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] > abs_prev_proc_elem[(WIDTH * {edge_i + 1}) - 1 -: WIDTH]) begin\n'
+                src += '\t\t\t' + f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] = abs_prev_proc_elem[(WIDTH * {edge_i + 1}) - 1 -: WIDTH];\n'
+                src += '\t\t' + 'end\n'
 
-                src += '\n\t\t\t' + f'reg_sign_nxt[{edge_i}] = reg_sign_nxt[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
+                src += '\n\t\t' + f'reg_sign[{edge_i}] = reg_sign[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
 
         # min - bias
         # should probably extend the sign of this operation
-        src += '\t\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                            f'reg_min_nxt[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] - ' +\
-                            f'bias[(WIDTH * {edge_i + 1}) - 1 -: WIDTH];\n'
+        src += '\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
+                            f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] - ' +\
+                            f'bias[(WIDTH * {edge_i + 1}) - 1 -: WIDTH];\n\n'
         
         # max(min-bias, 0) - clip to zero if negative
-        src += '\t\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                            f'(temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1] == 1\'b1)? ' +\
-                            f'{{EXTENDED_WIDTH{{1\'b0}}}} : temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH];\n'
+        src +=  (
+            f'\t\ttemp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1] == 1\'b1 ? \n'
+            f'\t\t{{EXTENDED_WIDTH{{1\'b0}}}} : temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH];\n\n'
+        )
 
         # sign * magnitude
-        src += '\t\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                            f'temp_reg[temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH]] * ' +\
-                            f'reg_sign_nxt[{edge_i}];\n'
-
+        src +=  (
+            f'\t\ttemp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = reg_sign[{edge_i}] == 1\'b1 ? \n'
+            f'\t\t-temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] : temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH];\n'
+        )
         src += '\n'
-
-    src += '\t\t' + 'end\n'
-
     # close the always block
     src += '\t' + 'end\n'
 

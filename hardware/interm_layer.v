@@ -13,24 +13,17 @@ module interm_layer
       output interm_ready);
     
     wire [WIDTH * E - 1 : 0] proc_elem_v;
+    wire [WIDTH * E - 1 : 0] bias;
     wire ready_v;
     
-    variable_nodes #(.N_V(N_V), .E(E)) v_layer (.clk(clk),
-                                                .rst(rst),
-                                                .data_ready(data_ready),
-                                                .prev_ready(prev_ready),
-                                                .all_llrs(all_llrs),
+    variable_nodes #(.N_V(N_V), .E(E)) v_layer (.all_llrs(all_llrs),
                                                 .prev_proc_elem(prev_proc_elem),
-                                                .proc_elem(proc_elem_v),
-                                                .varn_ready(ready_v));
+                                                .proc_elem(proc_elem_v));
     
-    check_nodes #(.E(E)) c_layer (.clk(clk),
-                                  .rst(rst),
-                                  .prev_ready(ready_v),                                
+    check_nodes #(.E(E)) c_layer (.bias(bias),
                                   .prev_proc_elem(proc_elem_v),
-                                  .proc_elem(proc_elem),
-                                  .checkn_ready(interm_ready));
-    
+                                  .proc_elem(proc_elem));
+                                  
     always @(posedge clk) begin
         if(rst == `RESET_VAL) begin
             // reset logic here
