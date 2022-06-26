@@ -42,9 +42,9 @@ interface decoder_interface
 endinterface
 
 class cw_wrapper #(
-    parameter N_V_HW,
+    parameter N_V,
     parameter LLR_SIZE);
-    logic[N_V_HW-1:0][LLR_SIZE-1:0] cw ;
+    logic[N_V-1:0][LLR_SIZE-1:0] cw ;
 endclass
 
 module tb();
@@ -121,8 +121,6 @@ mailbox gen_to_dut = new(2);
 mailbox dut_to_chk = new(2);
 mailbox gen_to_chk = new(2);
 
-logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_in_cw;
-
 task generate_cw;
     
 //	call c function generate_cw, apply_channel 
@@ -133,8 +131,8 @@ task generate_cw;
     int flag;
     int i; 
     automatic cw_wrapper #(
-        .N_V_HW(N_V_HW),
-        .LLR_SIZE(LLR_SIZE)
+        .N_V(dut_i.N_V),
+        .LLR_SIZE(dut_i.WIDTH_IN)
     ) w;
     int generated_cw[N_V-1:0];
     logic passed_cw [N_V-1:0];
@@ -151,14 +149,13 @@ task generate_cw;
         end
         
         w = new();
-        for (i=0; i<N_V_HW; i=i+1) begin
+        for (i=0; i<dut_i.N_V; i=i+1) begin
             w.cw[i] = generated_cw[i];
         end
         // Send to dut
-        debug_in_cw = w.cw;
         gen_to_dut.put(w);
         // Get output from C model and send for checking
-        //pass_through_model(generated_cw, passed_cw);
+        pass_through_model(generated_cw, passed_cw);
         passed_cw_packed = {>>1{passed_cw}};
         gen_to_chk.put(passed_cw_packed);
         
@@ -169,8 +166,8 @@ logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_driver_input;
 
 task drive_dut;
     automatic cw_wrapper #(
-        .N_V_HW(N_V_HW),
-        .LLR_SIZE(LLR_SIZE)
+        .N_V(dut_i.N_V),
+        .LLR_SIZE(dut_i.WIDTH_IN)
     ) w;
     automatic bit is_writing = 0;
     automatic int llr_index = -1;
@@ -187,7 +184,6 @@ task drive_dut;
                 continue;
             end
             else begin
-                $display("-----------------WRITING STAGE BEGIN------------");
                 is_writing = 1;
                 llr_index = dut_i.N_V-1;
             end
@@ -219,18 +215,37 @@ task drive_dut;
     end
 endtask
 
+logic [dut_i.N_V-1 : 0] debug_read_bits;
+
 task monitor_dut;
 //	extract signals 
 	
 //	put in mailbox (output) 
-    
+    automatic bit is_reading = 0;
+    automatic logic [dut_i.N_V-1 : 0] read_bits;
     forever begin
         @(negedge clk);
         // Drive first data signal to low unless writing
-        dut_i.first_data_out = 0;
-        if(dut_i.out_ready == 1) begin
-            dut_i.first_data_out = 1;
+        if(is_reading == 0) begin
+            dut_i.first_data_out = 0;
+            if(dut_i.out_ready == 1) begin
+                dut_i.first_data_out = 1;
+                is_reading = 1;
+            end
+            continue;
         end
+        // Reading starts
+        if(dut_i.data_valid_out == 0) begin
+            // End of read
+            is_reading = 0;
+            continue;
+        end
+        
+        // Shift register and read
+        read_bits = read_bits << dut_i.WIDTH_OUT;
+        read_bits[dut_i.WIDTH_OUT-1 : 0] = dut_i.databus_out;
+        debug_read_bits = read_bits;
+        dut_to_chk.put(read_bits);
     end 
 endtask
 
@@ -241,9 +256,14 @@ task check_cw;
 //	mailbox.get(output)
 	
 //	call c function input
-    reg[N_V-1:0][LLR_SIZE-1:0] cw_bit_rec ;
+    automatic logic [N_V-1:0] cw_out_c;
+    automatic logic [dut_i.N_V-1:0] cw_out_dut;
     forever begin
-        gen_to_chk.get(out_passed_cw);
+        gen_to_chk.get(cw_out_c);
+        dut_to_chk.get(cw_out_dut);
+        $display("Receiving resulting signals");
+        $displayb(cw_out_c);
+        $displayb(cw_out_dut);
     end 
 endtask 
 
