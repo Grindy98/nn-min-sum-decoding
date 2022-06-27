@@ -151,6 +151,9 @@ def build_checkn_source(adj_mat_dict, file_name):
 
     )
 
+    src += "\t\treg_min = {E{ {1'b0, {WIDTH-1{1'b1}} } }};\n"
+    src += "\t\treg_sign = {E{1'b0}};\n\n"
+
     # for every edge (node)
     for edge_i in range(0, n_edges):
         src += '\t\t' + f'//----- edge #{edge_i}\n'
@@ -165,11 +168,13 @@ def build_checkn_source(adj_mat_dict, file_name):
                 src += '\n\t\t' + f'reg_sign[{edge_i}] = reg_sign[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
 
         # min - bias
-        # should probably extend the sign of this operation
-        src += '\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = ' +\
-                            f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] - ' +\
-                            f'bias[(WIDTH * {edge_i + 1}) - 1 -: WIDTH];\n\n'
-        
+        src += (
+            '\t\t' f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = \n'
+            '\t\t\t' '{ {EXTENDED_BITS{reg_min[(WIDTH * ' f'{edge_i + 1}' ') - 1]} }, '
+            'reg_min[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] } - \n'
+            '\t\t\t' '{ {EXTENDED_BITS{bias[(WIDTH * ' f'{edge_i + 1}' ') - 1]} }, '
+            'bias[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] };\n\n'
+        )
         # max(min-bias, 0) - clip to zero if negative
         src +=  (
             f'\t\ttemp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1] == 1\'b1 ? \n'

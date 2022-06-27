@@ -20,9 +20,12 @@ module decoder_top
       output reg busy);
 
     reg [WIDTH_IN * N_V - 1 : 0] all_llrs, all_llrs_nxt;
-    reg [WIDTH_IN - 1 : 0] segm_counter, segm_counter_nxt; // WIDTH_IN bits should be sufficient for the number of variable nodes
+    reg [`INT_SIZE - 1 : 0] segm_counter, segm_counter_nxt;
     reg [WIDTH_IN - 1 : 0] out_segment, out_segment_nxt;
     reg [N_V - 1 : 0] cw_out, cw_out_nxt;
+    
+    reg [WIDTH_IN * E - 1 : 0] layer_inp_llr, layer_inp_llr_nxt;
+    wire [WIDTH_IN * E - 1 : 0] layer_out_llr;
         
     // state register signal
     reg [2:0] state_reg, state_nxt;
@@ -43,6 +46,17 @@ module decoder_top
     localparam WRITE = 3'b101;
     localparam RESET = 3'b111;
     
+    interm_layer #(
+        .WIDTH(WIDTH_IN),
+        .N_V(N_V),
+        .E(E)
+    )layer(
+        .bias_idx(segm_counter),
+        .all_llrs(all_llrs),
+        .prev_proc_elem(layer_inp_llr),
+        .proc_elem(layer_out_llr)
+    );
+    
 //    out_layer #(.N_V(N_V), .N_C(N_C), .E(E)) o_layer (  .clk(clk),
 //                                                        .rst(rst),
 //                                                        .data_ready(data_ready),
@@ -60,6 +74,7 @@ module decoder_top
             all_llrs <= 0;
             segm_counter <= 0;
             cw_out <= {100{3'b100}};
+            layer_inp_llr <= 0;
         end
         else begin
             state_reg <= state_nxt;  
@@ -67,6 +82,7 @@ module decoder_top
             all_llrs <= all_llrs_nxt;
             segm_counter <= segm_counter_nxt;
             cw_out <= cw_out_nxt;
+            layer_inp_llr <= layer_inp_llr_nxt;
         end
     end    
     
@@ -80,6 +96,8 @@ module decoder_top
         // Drive out bus to Z when unused
         databus_out = {WIDTH_OUT{1'bz}};
         cw_out_nxt = cw_out;
+        layer_inp_llr_nxt = layer_inp_llr;
+        
         case(state_reg)
             IDLE     :   begin
                             // Only state in which decoder not busy
@@ -118,8 +136,13 @@ module decoder_top
                         end
             
             PROCESS :   begin
-                            state_nxt = DATA_RDY;
-                            // to be done 
+                            segm_counter_nxt = segm_counter + 1;
+                            layer_inp_llr_nxt = layer_out_llr;
+                            if(segm_counter == N_ITER-1) begin
+                                // End processing and save output
+                                segm_counter_nxt = 0;
+                                state_nxt = DATA_RDY;
+                            end
                         end
             DATA_RDY:   begin
                             out_ready = 1'b1;
@@ -167,6 +190,7 @@ module decoder_top
                             all_llrs_nxt = 0;
                             segm_counter_nxt = 0;
                             cw_out_nxt = {100{3'b100}};
+                            layer_inp_llr_nxt = 0;
                         end
         endcase
     end
