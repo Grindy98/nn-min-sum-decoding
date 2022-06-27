@@ -1,5 +1,5 @@
 CXX = gcc
-CXX_FLAGS = -Wall
+CXX_FLAGS = -Wall -g
 
 # Final binary
 BIN = testbench
@@ -7,7 +7,8 @@ BIN = testbench
 BUILD_DIR = ./build
 
 # List of all .c source files.
-C = test.c $(wildcard *.c) import_matrix_wrapper.c
+C_RAW = test.c $(wildcard *.c) import_matrix_wrapper.c
+C = ${filter-out verilog_wrapper.c, ${C_RAW}}
 
 # All .o files go to build dir.
 OBJ = $(C:%.c=$(BUILD_DIR)/%.o)

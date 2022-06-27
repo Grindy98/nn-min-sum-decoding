@@ -45,6 +45,8 @@ int main(){
     display_mat(cw);
     matrix_t* llr_cw = channel_out_llr(cw, 0.01);
     display_mat(llr_cw);
+    matrix_t* llr_cw_fixed = fixed_error_out_llr(cw, 1);
+    display_mat(llr_cw_fixed);
 
     printf("Layer test\n");
     model_t model;
@@ -66,6 +68,7 @@ int main(){
 
     free_mat(&in);
     free_mat(&llr_cw);
+    free_mat(&llr_cw_fixed);
     free_mat(&cw);
     free_mat(&out);
     free_mat(&out_llr);

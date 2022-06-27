@@ -27,13 +27,18 @@ void logger(const char *fmt, ...) {
     c_print_wrapper(outstr);
 }
 
-int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover){
+int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
     matrix_t* initial = generate_random_codeword(generator_mat);
     if(initial->col_size != svSize(arrHandle, 1)){
         free_mat(&initial);
         return 1;
     }
-    matrix_t* noisy = apply_channel(initial, crossover);
+    matrix_t* noisy;
+    if(n_errors <= 0){
+        noisy = apply_channel(initial, crossover);
+    }else{
+        noisy = apply_fixed_error(initial, n_errors);
+    }
     matrix_t* casted_noisy = cast_to_llr(noisy);
     for(int i = svRight(arrHandle, 1); i <= svLeft(arrHandle, 1) ; i++){
         int* arrElem = (int*)svGetArrElemPtr1(arrHandle, i);

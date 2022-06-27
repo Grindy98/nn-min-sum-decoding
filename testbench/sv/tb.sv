@@ -53,7 +53,7 @@ import "DPI-C" function void before_start();
 import "DPI-C" function void before_end(); 
 
 import "DPI-C" function void pass_through_model(input int cw[], output logic outpArrHandle[]);
-import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p);
+import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors);
 
 export "DPI-C" function c_print_wrapper;
 
@@ -142,7 +142,7 @@ task generate_cw;
     forever begin
         #500 $display("Generating signal");
         
-        flag = generate_noisy_cw(generated_cw, cross_p);
+        flag = generate_noisy_cw(generated_cw, cross_p, 1);
         
         if(flag == 1) begin
             $display("Metaparameters don't match");

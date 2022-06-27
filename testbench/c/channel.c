@@ -38,6 +38,42 @@ matrix_t* apply_channel(matrix_t* codeword, float crossover_p){
     return out;
 }
 
+void shuffle(int *array, int n, int num_shuffles) {
+    for (int j = 0; j < num_shuffles; j++) {
+        for (int i = 0; i < n - 1; i++) {
+            size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+            int t = array[j];
+            array[j] = array[i];
+            array[i] = t;
+        }
+    }
+}
+
+matrix_t* apply_fixed_error(matrix_t* codeword, int n_errs){
+    if(!codeword->is_mod_two){
+        printf("Codeword has to be mod 2\n");
+        exit(1);
+    }
+    if(codeword->col_size < n_errs){
+        printf("Number of errors has to be smaller than size of cw\n");
+        exit(1);
+    }
+    int ind_arr[codeword->col_size];
+    for(int i = 0; i < codeword->col_size; i++){
+        ind_arr[i] = i;
+    }
+    shuffle(ind_arr, codeword->col_size, 20);
+    matrix_t* out = duplicate_mat(codeword, 1);
+    for (int i = 0; i < n_errs; i++)
+    {
+        // Invert bit
+        int64_t elem = get_elem(out, 0, ind_arr[i]);
+        elem = 1 - elem;
+        put_elem(out, 0, ind_arr[i], elem);
+    }
+    return out;
+}
+
 matrix_t* cast_to_llr(matrix_t* codeword){
     if(!codeword->is_mod_two){
         printf("Codeword has to be mod 2\n");
@@ -65,6 +101,13 @@ matrix_t* cast_from_llr(matrix_t* llr){
 
 matrix_t* channel_out_llr(matrix_t* codeword, float crossover_p){
     matrix_t* output_cw = apply_channel(codeword, crossover_p);
+    matrix_t* out = cast_to_llr(output_cw);
+    free_mat(&output_cw);
+    return out;
+}
+
+matrix_t* fixed_error_out_llr(matrix_t* codeword, int n_errs){
+    matrix_t* output_cw = apply_fixed_error(codeword, n_errs);
     matrix_t* out = cast_to_llr(output_cw);
     free_mat(&output_cw);
     return out;
