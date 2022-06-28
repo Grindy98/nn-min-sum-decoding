@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-i', type=str, nargs='+', help='path to needed input file(s)')
 parser.add_argument('-var_o', type=str, nargs=1, help='name of the variable nodes module')
 parser.add_argument('-check_o', type=str, nargs=1, help='name of the check nodes module')
+parser.add_argument('-out_o', type=str, nargs=1, help='name of the output layer module')
 
 
 def add_parameters(params):
@@ -196,6 +197,94 @@ def build_checkn_source(adj_mat_dict, file_name):
     return src
 
 
+def build_outl_source(adj_mat_dict, file_name):
+    # extract the number of variable nodes and the number of edges from adj_mat_dict
+    n_edges = adj_mat_dict['odd_inp_layer_mask'].shape[1]
+    n_v = adj_mat_dict['odd_inp_layer_mask'].shape[0]
+    src = ''
+
+    src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
+
+    src += '`include "ct.vh"\n\n'
+
+    # define the module itself
+    src += f'module {file_name}\n'
+
+    # add the parameters
+    src += add_parameters([('WIDTH', ct.WIDTH),
+                           ('N_V', n_v),
+                           ('E', n_edges),
+                           ('EXTENDED_BITS', 4)])
+
+    # add the ports
+    src +=  '\t( input [WIDTH * N_V - 1 : 0] all_llrs,\n' +\
+            '\t  input [WIDTH * E - 1 : 0] prev_proc_elem,\n' +\
+            '\t  output [N_V - 1 : 0] cw_out);\n\n'
+
+    src += '\t' + 'localparam EXTENDED_WIDTH = WIDTH + EXTENDED_BITS;\n\n'
+
+    # add registers
+    # temp_reg will be used for the sum with saturation
+    src += '\t' + 'reg [EXTENDED_WIDTH * N_V - 1 : 0] temp_reg;\n\n'
+    src += '\t' + 'reg [EXTENDED_WIDTH * N_V - 1 : 0] llr_out_reg;\n\n'
+
+    # instantiate the saturation module
+    src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
+            ' sat[E - 1 : 0] (.in(temp_reg), .out(llr_out_reg));\n'
+
+    # instantiate the hard decision extraction module
+    src += '\t' + 'llr_to_out #(.WIDTH(WIDTH)) ' +\
+                'lto[N_V - 1 : 0] (.in(llr_out_reg), .out(cw_out));\n\n'            
+
+    # combinational logic segment
+    src += '\n\t' + 'always @* begin\n'
+    def generate_inp(prev_i, n_tabs):
+        return (
+            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{prev_i + 1}' ' - 1]} }, '
+            'all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+        )
+    
+    def generate_prev(prev_i, n_tabs):
+        return (
+            n_tabs*'\t' + '{ {EXTENDED_BITS{prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1]} }, '
+            'prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+        )
+
+    # for every edge (node)
+    for edge_i in range(0, n_v):
+        src += '\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = \n'
+        inp_str_lst = []
+        for prev_i in range(0, n_v):
+            if adj_mat_dict['odd_inp_layer_mask'][prev_i][edge_i] == 1:
+                inp_str_lst.append(generate_inp(prev_i, 3))
+
+        prev_str_lst = []
+        for prev_i in range(0, n_edges):
+            if adj_mat_dict['output_mask'][prev_i][edge_i] == 1:
+                prev_str_lst.append(generate_prev(prev_i, 3))
+        
+        src += ' +\n\n'.join(filter(None, [
+            ' +\n'.join(inp_str_lst),
+            ' +\n'.join(prev_str_lst)
+        ]))
+        src += ';\n\n'
+
+    # close the always block
+    src += '\t' + 'end\n'
+
+    # close the module
+    src += 'endmodule\n'
+
+    return src
+
+
+def generate_module(file_name, data, gen_func):
+    with open(file_name + '.v', 'w') as out_file:
+        source_out = gen_func(data, file_name)
+        out_file.write(source_out)
+        print(f"Written {file_name + '.v'}")
+
+
 def main():
     args = parser.parse_args()
     data = {}
@@ -208,17 +297,13 @@ def main():
                 raise argparse.ArgumentError('Input files do not have proper format')
 
     # generate the variable nodes module
-    with open(args.var_o[0] + '.v', 'w') as out_file_v:
-        source_out = build_varn_source(data, args.var_o[0])
-        out_file_v.write(source_out)
-        print(f"Written {args.var_o[0] + '.v'}")
+    generate_module(args.var_o[0], data, build_varn_source)
 
     # generate the check nodes module
-    with open(args.check_o[0] + '.v', 'w') as out_file_c:
-        source_out = build_checkn_source(data, args.check_o[0])
-        out_file_c.write(source_out)
-        print(f"Written {args.check_o[0] + '.v'}")
-
+    generate_module(args.check_o[0], data, build_checkn_source)
+    
+    # generate the output layer module
+    generate_module(args.out_o[0], data, build_outl_source)
 
 
 if __name__ == '__main__':
