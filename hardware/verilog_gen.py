@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-i', type=str, nargs='+', help='path to needed input file(s)')
 parser.add_argument('-var_o', type=str, nargs=1, help='name of the variable nodes module')
 parser.add_argument('-check_o', type=str, nargs=1, help='name of the check nodes module')
-
+parser.add_argument('-lut_o', type=str, nargs=1, help='name of the check nodes module')
 
 def add_parameters(params):
     """Every parameter should be a tuple of the form (name, value)"""
@@ -195,6 +195,44 @@ def build_checkn_source(adj_mat_dict, file_name):
 
     return src
 
+def build_lut_source(data_dict, file_name):
+    # extract the number of variable nodes and the number of edges from adj_mat_dict
+    n_edges = data_dict['even_prev_layer_mask'].shape[1]
+    src = ''
+
+    src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
+
+    src += '`include "ct.vh"\n\n'
+
+    # define the module itself
+    src += f'module {file_name}\n'
+    # add the ports
+    src += (
+            '\t( input [`INT_SIZE-1 : 0] bias_idx,\n'
+            f'\t  output reg [{ct.WIDTH * n_edges}-1 : 0] bias);\n\n'
+    )
+
+    # add always & case block
+    src += '\talways@* begin\n'
+    src += '\tcase(bias_idx)\n'
+
+    # for every iteration
+    for i in range(data_dict['biases'].shape[0]):
+        row = data_dict['biases'][i, :]
+        bin_str = ''.join([np.binary_repr(x, width=ct.WIDTH) for x in row])
+        src += f'\t\t`INT_SIZE\'d{i} : bias = {len(bin_str)}\'b{bin_str};\n'
+    
+    # add default at the end
+    src += '\t\tdefault : bias = 0;\n'
+
+    # close the case & always block
+    src += '\tendcase\n'
+    src += '\t' + 'end\n'
+
+    # close the module
+    src += 'endmodule\n'
+
+    return src
 
 def main():
     args = parser.parse_args()
@@ -204,6 +242,8 @@ def main():
         with open(inp, 'rb') as infile:
             if os.path.splitext(inp)[1] == '.npz':
                 data.update(np.load(infile).items())
+            elif os.path.splitext(inp)[1] == '.npy':
+                data[os.path.basename(os.path.splitext(inp)[0])] = np.load(infile)
             else:
                 raise argparse.ArgumentError('Input files do not have proper format')
 
@@ -218,6 +258,11 @@ def main():
         source_out = build_checkn_source(data, args.check_o[0])
         out_file_c.write(source_out)
         print(f"Written {args.check_o[0] + '.v'}")
+    
+    with open(args.lut_o[0] + '.v', 'w') as out_file_l:
+        source_out = build_lut_source(data, args.lut_o[0])
+        out_file_l.write(source_out)
+        print(f"Written {args.lut_o[0] + '.v'}")
 
 
 
