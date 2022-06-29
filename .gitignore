@@ -8,4 +8,5 @@ import_matrix_wrapper.c
 /hardware/variable_nodes.v
 /hardware/check_nodes.v
 /hardware/lut_biases.v
+/hardware/out_layer.v
 /hardware/*_tb.v
