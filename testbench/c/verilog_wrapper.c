@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "channel.h"
 #include "layer.h"
@@ -9,6 +10,8 @@
 
 
 void before_start(){
+    // Seed for rng
+    srand(time(0));
     init_adj_mats();
 }
 

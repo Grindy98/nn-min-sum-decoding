@@ -4,6 +4,7 @@ module decoder_top
     #(  parameter WIDTH_IN = 8,
         parameter N_LLRS = 4,
         parameter WIDTH_OUT = 8,
+        parameter EXTENDED_BITS = 4,
         parameter N_ITER = 5,
         parameter N_V = 31,
         parameter E = 140)
@@ -23,6 +24,7 @@ module decoder_top
     reg [`INT_SIZE - 1 : 0] segm_counter, segm_counter_nxt;
     reg [WIDTH_IN - 1 : 0] out_segment, out_segment_nxt;
     reg [N_V - 1 : 0] cw_out, cw_out_nxt;
+    wire [N_V-1 : 0] cw_result;
     
     reg [WIDTH_IN * E - 1 : 0] layer_inp_llr, layer_inp_llr_nxt;
     wire [WIDTH_IN * E - 1 : 0] layer_out_llr;
@@ -57,14 +59,16 @@ module decoder_top
         .proc_elem(layer_out_llr)
     );
     
-//    out_layer #(.N_V(N_V), .N_C(N_C), .E(E)) o_layer (  .clk(clk),
-//                                                        .rst(rst),
-//                                                        .data_ready(data_ready),
-//                                                        .prev_ready(ready_last_i),
-//                                                        .all_llrs(all_llrs),
-//                                                        .prev_proc_elem(proc_elem_i),
-//                                                        .dw_out(dw_out),
-//                                                        .out_ready(out_ready));  
+    out_layer #(
+        .WIDTH(WIDTH_IN),
+        .N_V(N_V),
+        .E(E),
+        .EXTENDED_BITS(EXTENDED_BITS)
+        )o_layer(
+            .all_llrs(all_llrs),
+            .prev_proc_elem(layer_out_llr),
+            .cw_out(cw_result)
+        );
     
     // sequential logic segment
     always @(posedge clk) begin
@@ -73,7 +77,7 @@ module decoder_top
             
             all_llrs <= 0;
             segm_counter <= 0;
-            cw_out <= {100{3'b100}};
+            cw_out <= 0;
             layer_inp_llr <= 0;
         end
         else begin
@@ -139,9 +143,11 @@ module decoder_top
                             segm_counter_nxt = segm_counter + 1;
                             layer_inp_llr_nxt = layer_out_llr;
                             if(segm_counter == N_ITER-1) begin
-                                // End processing and save output
+                                // End processing
                                 segm_counter_nxt = 0;
                                 state_nxt = DATA_RDY;
+                                // Save output
+                                cw_out_nxt = cw_result;
                             end
                         end
             DATA_RDY:   begin
@@ -189,7 +195,7 @@ module decoder_top
                             state_nxt = IDLE;
                             all_llrs_nxt = 0;
                             segm_counter_nxt = 0;
-                            cw_out_nxt = {100{3'b100}};
+                            cw_out_nxt = 0;
                             layer_inp_llr_nxt = 0;
                         end
         endcase

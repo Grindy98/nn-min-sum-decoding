@@ -168,11 +168,11 @@ def build_checkn_source(adj_mat_dict, file_name):
 
                 src += '\n\t\t' + f'reg_sign[{edge_i}] = reg_sign[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
 
-        # min - bias
+        # min + bias
         src += (
             '\t\t' f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = \n'
             '\t\t\t' '{ {EXTENDED_BITS{reg_min[(WIDTH * ' f'{edge_i + 1}' ') - 1]} }, '
-            'reg_min[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] } - \n'
+            'reg_min[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] } + \n'
             '\t\t\t' '{ {EXTENDED_BITS{bias[(WIDTH * ' f'{edge_i + 1}' ') - 1]} }, '
             'bias[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] };\n\n'
         )
@@ -264,15 +264,15 @@ def build_outl_source(adj_mat_dict, file_name):
     # add registers
     # temp_reg will be used for the sum with saturation
     src += '\t' + 'reg [EXTENDED_WIDTH * N_V - 1 : 0] temp_reg;\n\n'
-    src += '\t' + 'reg [EXTENDED_WIDTH * N_V - 1 : 0] llr_out_reg;\n\n'
+    src += '\t' + 'wire [WIDTH * N_V - 1 : 0] llr_out_wire;\n\n'
 
     # instantiate the saturation module
     src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
-            ' sat[E - 1 : 0] (.in(temp_reg), .out(llr_out_reg));\n'
+            ' sat[N_V - 1 : 0] (.in(temp_reg), .out(llr_out_wire));\n'
 
     # instantiate the hard decision extraction module
     src += '\t' + 'llr_to_out #(.WIDTH(WIDTH)) ' +\
-                'lto[N_V - 1 : 0] (.in(llr_out_reg), .out(cw_out));\n\n'            
+                'lto[N_V - 1 : 0] (.in(llr_out_wire), .out(cw_out));\n\n'            
 
     # combinational logic segment
     src += '\n\t' + 'always @* begin\n'

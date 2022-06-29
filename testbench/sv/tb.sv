@@ -238,6 +238,7 @@ task monitor_dut;
         if(dut_i.data_valid_out == 0) begin
             // End of read
             is_reading = 0;
+            dut_to_chk.put(read_bits);
             continue;
         end
         
@@ -245,7 +246,6 @@ task monitor_dut;
         read_bits = read_bits << dut_i.WIDTH_OUT;
         read_bits[dut_i.WIDTH_OUT-1 : 0] = dut_i.databus_out;
         debug_read_bits = read_bits;
-        dut_to_chk.put(read_bits);
     end 
 endtask
 

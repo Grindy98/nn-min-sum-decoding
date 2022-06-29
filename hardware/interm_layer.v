@@ -12,12 +12,20 @@ module interm_layer
     wire [WIDTH * E - 1 : 0] proc_elem_v;
     wire [WIDTH * E - 1 : 0] bias;
     
-    variable_nodes #(.WIDTH(WIDTH), .N_V(N_V), .E(E)) v_layer (.all_llrs(all_llrs),
-                                                .prev_proc_elem(prev_proc_elem),
-                                                .proc_elem(proc_elem_v));
+    lut_biases lut(
+        .bias_idx(bias_idx),
+        .bias(bias)
+    );
     
-    check_nodes #(.WIDTH(WIDTH), .E(E)) c_layer (.bias(0),
-                                  .prev_proc_elem(proc_elem_v),
-                                  .proc_elem(proc_elem));
-                                  
+    variable_nodes #(.WIDTH(WIDTH), .N_V(N_V), .E(E)) v_layer (
+        .all_llrs(all_llrs),
+        .prev_proc_elem(prev_proc_elem),
+        .proc_elem(proc_elem_v)
+    );
+    
+    check_nodes #(.WIDTH(WIDTH), .E(E)) c_layer (
+        .bias(bias),
+        .prev_proc_elem(proc_elem_v),
+        .proc_elem(proc_elem)
+    );                          
 endmodule
