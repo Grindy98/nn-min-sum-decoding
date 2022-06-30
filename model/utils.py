@@ -10,8 +10,8 @@ def get_tanner_graph(h_mat):
     
     t_graph.add_edges_from(( (f'c{c}', f'v{v}') for c, v in np.transpose(np.where(h_mat == 1)) ))
     # Positions for drawing
-    pos_c = {f'c{i}': (interp(i, 0, n_c-1, 0, 2), 1)for i in range(n_c)}
-    pos_v = {f'v{i}': (interp(i, 0, n_v-1, 0, 2), 0)for i in range(n_v)}
+    pos_c = {f'c{i}': (0, interp(i, 0, n_c-1, 2, 0))for i in range(n_c)}
+    pos_v = {f'v{i}': (1, interp(i, 0, n_v-1, 2, 0))for i in range(n_v)}
     return t_graph, {**pos_c, **pos_v}
 
 

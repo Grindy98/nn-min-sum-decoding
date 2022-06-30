@@ -1,13 +1,13 @@
 `include "ct.vh"
 
 module decoder_top
-    #(  parameter WIDTH_IN = 8,
-        parameter N_LLRS = 4,
-        parameter WIDTH_OUT = 8,
-        parameter EXTENDED_BITS = 4,
-        parameter N_ITER = 5,
-        parameter N_V = 31,
-        parameter E = 140)
+    #(  parameter WIDTH_IN = `WIDTH_IN,
+        parameter N_LLRS = `N_LLRS,
+        parameter WIDTH_OUT = `WIDTH_OUT,
+        parameter EXTENDED_BITS = `EXTENDED_BITS,
+        parameter N_ITER = `N_ITER,
+        parameter N_V = `N_V,
+        parameter E = `E)
     ( input clk, rst,
       input [N_LLRS * WIDTH_IN - 1 : 0] databus_in,
       input first_data,
@@ -51,7 +51,8 @@ module decoder_top
     interm_layer #(
         .WIDTH(WIDTH_IN),
         .N_V(N_V),
-        .E(E)
+        .E(E),
+        .EXTENDED_BITS(EXTENDED_BITS)
     )layer(
         .bias_idx(segm_counter),
         .all_llrs(all_llrs),

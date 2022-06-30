@@ -276,10 +276,10 @@ def build_outl_source(adj_mat_dict, file_name):
 
     # combinational logic segment
     src += '\n\t' + 'always @* begin\n'
-    def generate_inp(prev_i, n_tabs):
+    def generate_inp(edge_i, n_tabs):
         return (
-            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{prev_i + 1}' ' - 1]} }, '
-            'all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{edge_i + 1}' ' - 1]} }, '
+            'all_llrs[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] }'
         )
     
     def generate_prev(prev_i, n_tabs):
@@ -292,9 +292,7 @@ def build_outl_source(adj_mat_dict, file_name):
     for edge_i in range(0, n_v):
         src += '\t\t' + f'temp_reg[(EXTENDED_WIDTH * {edge_i + 1}) - 1 -: EXTENDED_WIDTH] = \n'
         inp_str_lst = []
-        for prev_i in range(0, n_v):
-            if adj_mat_dict['odd_inp_layer_mask'][prev_i][edge_i] == 1:
-                inp_str_lst.append(generate_inp(prev_i, 3))
+        inp_str_lst.append(generate_inp(edge_i, 3))
 
         prev_str_lst = []
         for prev_i in range(0, n_edges):

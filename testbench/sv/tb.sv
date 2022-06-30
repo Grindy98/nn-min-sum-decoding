@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+`include "ct.vh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -20,12 +20,12 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 interface decoder_interface
-    #(  parameter WIDTH_IN = 8,
-        parameter N_LLRS = 4,
-        parameter WIDTH_OUT = 8,
-        parameter N_ITER = 5,
-        parameter N_V = 31,
-        parameter E = 140)
+    #(  parameter WIDTH_IN = `WIDTH_IN,
+        parameter N_LLRS = `N_LLRS,
+        parameter WIDTH_OUT = `WIDTH_OUT,
+        parameter N_ITER = `N_ITER,
+        parameter N_V = `N_V,
+        parameter E = `E)
     ( input clk, rst);
       logic [N_LLRS * WIDTH_IN - 1 : 0] databus_in;
       logic [WIDTH_OUT - 1 : 0] databus_out;
@@ -61,12 +61,12 @@ function void c_print_wrapper(input string to_print);
     $display("[C] %s", to_print);
 endfunction
 
-localparam LLR_SIZE = 8;
-localparam N_V = 15;
+localparam LLR_SIZE = `WIDTH_IN;
+localparam N_V = `N_V;
 localparam N_V_HW = N_V;
-localparam WIDTH_OUT = LLR_SIZE;
-localparam E = 38;
-localparam cross_p = 0.01;
+localparam WIDTH_OUT = `WIDTH_OUT;
+localparam E = `E;
+localparam cross_p = `CROSS_P;
 
 reg clk;
 reg rst;

@@ -206,10 +206,10 @@ def generate_adj_matrix_data(tanner_graph):
 
 # %%
 # active_mat = H_32_44
-# active_mat = BCH_16_31
-active_mat = np.array(tf.constant(
-    galois.generator_to_parity_check_matrix(
-        galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
+active_mat = BCH_16_31
+# active_mat = np.array(tf.constant(
+#     galois.generator_to_parity_check_matrix(
+#         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
 DECIMAL_POINT_BIT = 4
 INT_SIZE = 8
@@ -231,7 +231,9 @@ from utils import get_tanner_graph
 G, pos = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 
-nx.draw_networkx(G, pos)
+fig, ax = plt.subplots(figsize=[8, 12])
+nx.draw_networkx(G, pos, ax=ax, node_size=300, font_size=9)
+plt.show()
 
 # %%
 np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
