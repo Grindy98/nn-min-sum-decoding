@@ -62,17 +62,19 @@ The structure of the project is divided into five main parts:
 ***                     Steps to build and test project                     ***
 *******************************************************************************
 
-1. Open Xilinx Vivado and create new project (note: the path to the project 
-   should not contain whitespaces)
-2. Close Xilinx Vivado and open the folder where the project was created 
-3. Copy the file named functions.tcl found in testbench/sv/ and change the 
+1. Either clone locally the repository or extract the archive containing the 
+   project (note: make sure that the path to the project does not contain
+   whitespaces as it will affect the next steps)
+2. Open Xilinx Vivado and create new project
+3. Close Xilinx Vivado and open the folder where the project was created 
+4. Copy the file named functions.tcl found in testbench/sv/ and change the 
    first line to the repository path
-4. Open the project using Vivado .xpr file
-5. Check if the project was opened as expected by typing in the tcl console
+5. Open the project using Vivado .xpr file
+6. Check if the project was opened as expected by typing in the tcl console
    pwd, otherwise change directory until the current folder is the folder where
    the Vivado project is 
-6. Type: source functions.tcl
-7. Type: refresh
-8. Type: simulate
+7. Type: source functions.tcl
+8. Type: refresh
+9. Type: simulate
 
 *******************************************************************************
