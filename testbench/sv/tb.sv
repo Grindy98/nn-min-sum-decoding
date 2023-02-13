@@ -249,7 +249,8 @@ task monitor_dut;
     end 
 endtask
 
-logic [N_V-1:0] out_passed_cw;
+logic [N_V-1:0] debug_out_cw_gen;
+logic [N_V-1:0] debug_out_cw_dut;
 
 task check_cw; 
 //	mailbox.get (input)
@@ -261,6 +262,8 @@ task check_cw;
     forever begin
         gen_to_chk.get(cw_out_c);
         dut_to_chk.get(cw_out_dut);
+        debug_out_cw_gen = cw_out_c;
+        debug_out_cw_dut = cw_out_dut;
         $display("Receiving resulting signals");
         $displayb(cw_out_c);
         $displayb(cw_out_dut);
