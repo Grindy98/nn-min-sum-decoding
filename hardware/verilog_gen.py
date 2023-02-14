@@ -1,17 +1,42 @@
-import numpy as np
-
 import argparse
 import os
+import json
 
-import ct
+import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-i', type=str, nargs='+', help='path to needed input file(s)')
+parser.add_argument('-i', type=str, nargs='+', help='path to needed numpy file(s)')
+parser.add_argument('-p', type=str, nargs=1, help='path to needed json param file')
 parser.add_argument('-var_o', type=str, nargs=1, help='name of the variable nodes module')
 parser.add_argument('-check_o', type=str, nargs=1, help='name of the check nodes module')
 parser.add_argument('-out_o', type=str, nargs=1, help='name of the output layer module')
 parser.add_argument('-lut_o', type=str, nargs=1, help='name of the lut module')
+parser.add_argument('-vh_o', type=str, nargs=1, help='name of the header file')
+
+
+def build_header():
+    return (
+        f'`ifndef _ct_vh_\n'
+        f'`define _ct_vh_\n'
+
+        f'`define RESET_VAL {params_dict["RESET_VAL"]}\n'
+        f'`define INT_SIZE {params_dict["INT_SIZE"]}\n'
+
+        f'`define WIDTH_IN {params_dict["WIDTH"]}\n'
+        f'`define WIDTH_OUT {params_dict["WIDTH"]}\n'
+        f'`define N_LLRS {params_dict["N_LLRS"]}\n'
+        f'`define EXTENDED_BITS {params_dict["EXTENDED_BITS"]}\n'
+        f'`define N_V {params_dict["N_V"]}\n'
+        f'`define E {params_dict["E"]}\n'
+        f'`define N_ITER {params_dict["BF_ITERS"]}\n'
+        f'`define CROSS_P {params_dict["CROSS_P"]}\n'
+
+        f'`timescale 1ns / 1ps\n'
+
+        f'`endif'
+    )
+
 
 def add_parameters(params):
     """Every parameter should be a tuple of the form (name, value)"""
@@ -30,9 +55,9 @@ def add_parameters(params):
 
 
 def build_varn_source(adj_mat_dict, file_name):
-    # extract the number of variable nodes and the number of edges from adj_mat_dict
-    n_edges = adj_mat_dict['odd_inp_layer_mask'].shape[1]
-    n_v = adj_mat_dict['odd_inp_layer_mask'].shape[0]
+    # extract the number of variable nodes and the number of edges
+    n_edges = params_dict['E']
+    n_v = params_dict['N_V']
     src = ''
 
     src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
@@ -43,7 +68,7 @@ def build_varn_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', ct.WIDTH),
+    src += add_parameters([('WIDTH', params_dict['WIDTH']),
                            ('N_V', n_v),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])
@@ -107,8 +132,8 @@ def build_varn_source(adj_mat_dict, file_name):
 
 
 def build_checkn_source(adj_mat_dict, file_name):
-    # extract the number of variable nodes and the number of edges from adj_mat_dict
-    n_edges = adj_mat_dict['even_prev_layer_mask'].shape[1]
+    # extract the number of variable nodes and the number of edges
+    n_edges = params_dict['E']
     src = ''
 
     src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
@@ -119,7 +144,7 @@ def build_checkn_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', ct.WIDTH),
+    src += add_parameters([('WIDTH', params_dict['WIDTH']),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])
 
@@ -197,8 +222,8 @@ def build_checkn_source(adj_mat_dict, file_name):
     return src
 
 def build_lut_source(data_dict, file_name):
-    # extract the number of variable nodes and the number of edges from adj_mat_dict
-    n_edges = data_dict['even_prev_layer_mask'].shape[1]
+    # extract the number of variable nodes and the number of edges
+    n_edges = params_dict['E']
     src = ''
 
     src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
@@ -210,7 +235,7 @@ def build_lut_source(data_dict, file_name):
     # add the ports
     src += (
             '\t( input [`INT_SIZE-1 : 0] bias_idx,\n'
-            f'\t  output reg [{ct.WIDTH * n_edges}-1 : 0] bias);\n\n'
+            f'\t  output reg [{params_dict["WIDTH"] * n_edges}-1 : 0] bias);\n\n'
     )
 
     # add always & case block
@@ -220,7 +245,7 @@ def build_lut_source(data_dict, file_name):
     # for every iteration
     for i in range(data_dict['biases'].shape[0]):
         row = data_dict['biases'][i, :]
-        bin_str = ''.join([np.binary_repr(x, width=ct.WIDTH) for x in row])
+        bin_str = ''.join([np.binary_repr(x, width=params_dict["WIDTH"]) for x in row])
         src += f'\t\t`INT_SIZE\'d{i} : bias = {len(bin_str)}\'b{bin_str};\n'
     
     # add default at the end
@@ -236,9 +261,9 @@ def build_lut_source(data_dict, file_name):
     return src
 
 def build_outl_source(adj_mat_dict, file_name):
-    # extract the number of variable nodes and the number of edges from adj_mat_dict
-    n_edges = adj_mat_dict['odd_inp_layer_mask'].shape[1]
-    n_v = adj_mat_dict['odd_inp_layer_mask'].shape[0]
+    # extract the number of variable nodes and the number of edges
+    n_edges = params_dict["E"]
+    n_v = params_dict["N_V"]
     src = ''
 
     src += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
@@ -249,7 +274,7 @@ def build_outl_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', ct.WIDTH),
+    src += add_parameters([('WIDTH', params_dict["WIDTH"]),
                            ('N_V', n_v),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])
@@ -325,6 +350,12 @@ def main():
     args = parser.parse_args()
     data = {}
 
+    global params_dict
+
+    # Parse params json
+    with open(args.p[0], 'r') as jin:
+        params_dict = json.load(jin)
+
     for inp in args.i:
         with open(inp, 'rb') as infile:
             if os.path.splitext(inp)[1] == '.npz':
@@ -333,6 +364,10 @@ def main():
                 data[os.path.basename(os.path.splitext(inp)[0])] = np.load(infile)
             else:
                 raise argparse.ArgumentError('Input files do not have proper format')
+
+    # generate header
+    with open(args.vh_o[0], 'w') as out_file:
+        out_file.write(build_header())
 
     # generate the variable nodes module
     generate_module(args.var_o[0], data, build_varn_source)

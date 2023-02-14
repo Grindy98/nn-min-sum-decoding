@@ -25,6 +25,7 @@
 # ## Imports and Data Load
 
 # %%
+import json
 import tensorflow as tf
 import scipy.io
 
@@ -49,6 +50,9 @@ H_4_7 = swap_form(np.array(const_dict['H_4_7']))
 BCH_16_31 = np.array(tf.constant(
     galois.generator_to_parity_check_matrix(
         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
+BCH_4_7 = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(7, galois.BCH(7, 4).generator_poly))))
 
 # %% [markdown]
 # ## Function Definitions
@@ -205,8 +209,18 @@ def generate_adj_matrix_data(tanner_graph):
 # ## Configurations
 
 # %%
+print(H_4_7)
+
+# %%
+print(BCH_4_7)
+
+# %%
+# Generator matrix
+
 # active_mat = H_32_44
-active_mat = BCH_16_31
+# active_mat = BCH_16_31
+active_mat = BCH_4_7
+
 # active_mat = np.array(tf.constant(
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
@@ -214,9 +228,14 @@ active_mat = BCH_16_31
 DECIMAL_POINT_BIT = 4
 INT_SIZE = 8
 
+RESET_VAL = 1
+WIDTH = 8
+N_LLRS = 4
+EXTENDED_BITS = 4
+
 BF_ITERS = 5
 
-p = 0.01
+CROSS_P = 0.01
 
 # %% [markdown]
 # # Model training and testing
@@ -235,9 +254,31 @@ fig, ax = plt.subplots(figsize=[8, 12])
 nx.draw_networkx(G, pos, ax=ax, node_size=300, font_size=9)
 plt.show()
 
+# %% [markdown]
+# ## Graph Data
+
 # %%
-np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
+# Matrix data
+adj_matrix_dict = generate_adj_matrix_data(G)
+np.savez('../data/adj_matrices.npz', **adj_matrix_dict)
 np.save('../data/generator.npy', gen_mat)
+
+# %%
+# Parameters
+par_dict = {
+    'N_V': adj_matrix_dict['odd_inp_layer_mask'].shape[0], 
+    'E': adj_matrix_dict['odd_prev_layer_mask'].shape[0], 
+    'DECIMAL_POINT_BIT': DECIMAL_POINT_BIT,
+    'INT_SIZE': INT_SIZE,
+    'BF_ITERS': BF_ITERS,
+    'CROSS_P': CROSS_P,
+    'RESET_VAL': RESET_VAL,
+    'WIDTH': WIDTH,
+    'N_LLRS': N_LLRS,
+    'EXTENDED_BITS': EXTENDED_BITS,
+}
+with open('../data/params.json', 'w') as jout:
+    json.dump(par_dict, jout)
 
 # %% [markdown]
 # ## Model Compile and Fit
@@ -246,13 +287,13 @@ np.save('../data/generator.npy', gen_mat)
 
 # %%
 model, n_v = get_compiled_model(G, BF_ITERS)
-# model.summary()
+model.summary()
 
 # %%
 # tf.keras.utils.plot_model(model, show_shapes=True)
 
 # %%
-gen = datagen_creator(gen_mat)(120, p)
+gen = datagen_creator(gen_mat)(120, CROSS_P)
 
 # %%
 history = model.fit(
@@ -277,7 +318,7 @@ history = model.fit(
 
 # %%
 model.evaluate(
-    x=datagen_creator(gen_mat)(120, p, zero_only=False),
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False),
     steps=100 
 )
 
@@ -297,12 +338,10 @@ set_bias_arr(int_model, bias_arr_casted.astype('float64'))
 
 # %%
 int_model.evaluate(
-    x=datagen_creator(gen_mat)(120, p, zero_only=False, test_int=True),
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False, test_int=True),
     steps=100 
 )
 
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr_casted)
-
-# %%
