@@ -1,6 +1,6 @@
 #include "matrix.h"
 #include <stdlib.h>
-#include <stdio.h>
+#include "print.h"
 
 // Initialize with arr or with 0 if no arr
 matrix_t* create_mat(int64_t* arr, int rows, int cols, int is_mod_two){
@@ -50,7 +50,7 @@ int check_range(matrix_t* mat, int row, int col){
 
 int64_t get_elem(matrix_t* mat, int row, int col){
     if(!check_range(mat, row, col)){
-        printf("Invalid range for elem\n");
+        custom_print("Invalid range for elem\n");
         exit(1);
     } 
     return mat->mat[row * mat->col_size + col];
@@ -58,7 +58,7 @@ int64_t get_elem(matrix_t* mat, int row, int col){
 
 void put_elem(matrix_t* mat, int row, int col, int64_t elem){
     if(!check_range(mat, row, col)){
-        printf("Invalid range for elem\n");
+        custom_print("Invalid range for elem\n");
         exit(1);
     } 
     mat->mat[row * mat->col_size + col] = mat->is_mod_two ?
@@ -88,7 +88,7 @@ void mat_apply_saturation(matrix_t* A){
 
 matrix_t* mat_extract(matrix_t* A, int row, int col){
     if(!check_range(A, row == -1 ? 0 : row, col == -1 ? 0 : col)){
-        printf("Invalid range for row/col extraction\n");
+        custom_print("Invalid range for row/col extraction\n");
         exit(1);
     }
 
@@ -111,7 +111,7 @@ matrix_t* mat_extract(matrix_t* A, int row, int col){
 
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
     if(A->col_size != B->row_size){
-        printf("Matrices must have same inner rank: %d != %d\n",
+        custom_print("Matrices must have same inner rank: %d != %d\n",
             A->col_size, B->row_size);
         exit(1);
     }
@@ -142,7 +142,7 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_sum(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        printf("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+        custom_print("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
             A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
@@ -167,7 +167,7 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        printf("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+        custom_print("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
             A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
@@ -189,12 +189,12 @@ matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
 void display_mat(matrix_t* mat){
     for (int i = 0; i < mat->row_size; i++)
     {
-        printf(" ");
+        custom_print(" ");
         for (int j = 0; j < mat->col_size; j++)
         {
-            printf("%ld ", get_elem(mat, i, j));
+            custom_print("%ld ", get_elem(mat, i, j));
         }
-        printf("\n");
+        custom_print("\n");
     }
 }
 

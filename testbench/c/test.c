@@ -1,12 +1,23 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
 
+#include "print.h"
 #include "matrix.h"
 #include "layer.h"
 #include "channel.h"
 #include "import_matrix_wrapper.h"
+
+int custom_print ( const char * fmt, ... ){
+    int ret;
+    va_list args;
+    va_start(args, fmt);
+    ret = vprintf(fmt, args);
+    va_end(args);
+    return ret;
+}
 
 int main(){
     // Seed for rng
