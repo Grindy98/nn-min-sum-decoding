@@ -120,9 +120,10 @@ end
 
 
 
-mailbox gen_to_dut = new(2);
-mailbox dut_to_chk = new(2);
-mailbox gen_to_chk = new(2);
+mailbox gen_to_dut = new(1);
+mailbox dut_to_chk = new(1);
+mailbox gen_to_chk_init = new(1);
+mailbox gen_to_chk_c = new(1);
 
 task generate_cw;
     
@@ -137,7 +138,9 @@ task generate_cw;
         .N_V(dut_i.N_V),
         .LLR_SIZE(dut_i.WIDTH_IN)
     ) w;
-    int generated_cw[N_V-1:0];
+    logic generated_cw_initial[N_V-1:0];
+    logic [N_V-1:0] cw_initial_packed;
+    int generated_cw_noisy[N_V-1:0];
     logic passed_cw [N_V-1:0];
     logic [N_V-1:0] passed_cw_packed;
     logic [LLR_SIZE-1:0] cw_bit [N_V];
@@ -153,14 +156,14 @@ task generate_cw;
         
         w = new();
         for (i=0; i<dut_i.N_V; i=i+1) begin
-            w.cw[i] = generated_cw[i];
+            w.cw[i] = generated_cw_noisy[i];
         end
         // Send to dut
         gen_to_dut.put(w);
         // Get output from C model and send for checking
-        pass_through_model(generated_cw, passed_cw);
-        passed_cw_packed = {>>1{passed_cw}};
-        gen_to_chk.put(passed_cw_packed);
+        pass_through_model(generated_cw_noisy, passed_cw);
+        passed_cw_packed = {<<1{passed_cw}};
+        gen_to_chk_c.put(passed_cw_packed);
         
     end 
 endtask 
@@ -260,12 +263,17 @@ task check_cw;
 //	mailbox.get(output)
 	
 //	call c function input
+    automatic logic [N_V-1:0] cw_init;
     automatic logic [N_V-1:0] cw_out_c;
     automatic logic [dut_i.N_V-1:0] cw_out_dut;
     forever begin
-        gen_to_chk.get(cw_out_c);
+        gen_to_chk_init.get(cw_init);
+        gen_to_chk_c.get(cw_out_c);
         dut_to_chk.get(cw_out_dut);
+        debug_out_cw_gen = cw_out_c;
+        debug_out_cw_dut = cw_out_dut;
         $display("Receiving resulting signals");
+        $displayb(cw_init);
         $displayb(cw_out_c);
         $displayb(cw_out_dut);
     end 
