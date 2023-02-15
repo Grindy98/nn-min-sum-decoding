@@ -53,12 +53,15 @@ import "DPI-C" function void before_start();
 import "DPI-C" function void before_end(); 
 
 import "DPI-C" function void pass_through_model(input int cw[], output logic outpArrHandle[]);
+
+import "DPI-C" function int generate_cw_init(output logic cw[]);
+import "DPI-C" function int generate_cw_noisy_from_init(output int cw_out[], input logic cw_in[], input real cross_p, input int n_errors);
 import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors);
 
 export "DPI-C" function c_print_wrapper;
 
 function void c_print_wrapper(input string to_print);
-    $display("[C] %s", to_print);
+    $write("%s", to_print);
 endfunction
 
 localparam LLR_SIZE = `WIDTH_IN;
@@ -249,7 +252,8 @@ task monitor_dut;
     end 
 endtask
 
-logic [N_V-1:0] out_passed_cw;
+logic [N_V-1:0] debug_out_cw_gen;
+logic [N_V-1:0] debug_out_cw_dut;
 
 task check_cw; 
 //	mailbox.get (input)
