@@ -1,8 +1,8 @@
-#include <svdpi.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
+#include <svdpi.h>
 
 #include "print.h"
 #include "channel.h"
@@ -76,11 +76,11 @@ int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandl
     return 0;
 }
 
-
 int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
     matrix_t* initial = generate_random_codeword(generator_mat);
     
     custom_print("Initial CW:\t");
+    
     display_mat(initial);
     
     if(initial->col_size != svSize(arrHandle, 1)){
@@ -104,8 +104,8 @@ int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_error
         *arrElem = (int)get_elem(casted_noisy, 0, i);
     }
     free_mat(&casted_noisy);
-    free_mat(&noisy);
-    free_mat(&initial);
+    free_mat(&noisy); 
+    free_mat(&initial); 
     return 0;
 }
 

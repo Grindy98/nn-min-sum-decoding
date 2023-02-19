@@ -52,11 +52,19 @@ module tb();
 import "DPI-C" function void before_start(); 
 import "DPI-C" function void before_end(); 
 
-import "DPI-C" function void pass_through_model(input int cw[], output logic outpArrHandle[]);
+import "DPI-C" function void pass_through_model(input int cw[], output logic cw_out[]);
+// function void pass_through_model(int cw[], logic outpArrHandle[]);
+//     outpArrHandle = '{0, 0, 0, 0, 0, 0, 0};
+// endfunction
 
-import "DPI-C" function int generate_cw_init(output logic cw[]);
-import "DPI-C" function int generate_cw_noisy_from_init(output int cw_out[], input logic cw_in[], input real cross_p, input int n_errors);
-import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors);
+import "DPI-C" function int generate_cw_init(logic cw[]);
+
+import "DPI-C" function int generate_cw_noisy_from_init(int cw_out[], logic cw_in[], input real cross_p, input int n_errors);
+import "DPI-C" function int generate_noisy_cw(int cw[], input real cross_p, input int n_errors);
+// function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors) ;
+//     cw = '{0, 0, 0, 0, 0, 0, 0};
+//     return 0;
+// endfunction
 
 export "DPI-C" function c_print_wrapper;
 
@@ -125,7 +133,7 @@ mailbox dut_to_chk = new(1);
 mailbox gen_to_chk_init = new(1);
 mailbox gen_to_chk_c = new(1);
 
-task generate_cw;
+task static generate_cw;
     
 //	call c function generate_cw, apply_channel 
 	
@@ -144,12 +152,19 @@ task generate_cw;
     logic passed_cw [N_V-1:0];
     logic [N_V-1:0] passed_cw_packed;
     logic [LLR_SIZE-1:0] cw_bit [N_V];
-    
+
+    generated_cw_initial = '{N_V{0}};
     forever begin
         #500 $display("Generating signal");
         
-        flag = generate_noisy_cw(generated_cw, cross_p, 1);
+        // flag = generate_cw_init(generated_cw_initial);
+        // if(flag == 1) begin
+        //     $display("Metaparameters don't match");
+        // end
         
+        // flag = generate_cw_noisy_from_init(generated_cw_noisy, generated_cw_initial, cross_p, 1);
+          
+        flag = generate_noisy_cw(generated_cw_noisy, cross_p, 1);
         if(flag == 1) begin
             $display("Metaparameters don't match");
         end
@@ -160,7 +175,11 @@ task generate_cw;
         end
         // Send to dut
         gen_to_dut.put(w);
-        // Get output from C model and send for checking
+
+        // Get output from init and C model and send for checking
+        cw_initial_packed = {<<1{generated_cw_initial}};
+        gen_to_chk_init.put(cw_initial_packed);
+
         pass_through_model(generated_cw_noisy, passed_cw);
         passed_cw_packed = {<<1{passed_cw}};
         gen_to_chk_c.put(passed_cw_packed);
@@ -170,7 +189,7 @@ endtask
 
 logic[N_V_HW-1:0][LLR_SIZE-1:0] debug_driver_input;
 
-task drive_dut;
+task static drive_dut;
     automatic cw_wrapper #(
         .N_V(dut_i.N_V),
         .LLR_SIZE(dut_i.WIDTH_IN)
@@ -223,7 +242,7 @@ endtask
 
 logic [dut_i.N_V-1 : 0] debug_read_bits;
 
-task monitor_dut;
+task static monitor_dut;
 //	extract signals 
 	
 //	put in mailbox (output) 
@@ -258,7 +277,7 @@ endtask
 logic [N_V-1:0] debug_out_cw_gen;
 logic [N_V-1:0] debug_out_cw_dut;
 
-task check_cw; 
+task static check_cw; 
 //	mailbox.get (input)
 //	mailbox.get(output)
 	
