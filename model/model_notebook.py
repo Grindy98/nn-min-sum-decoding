@@ -165,8 +165,7 @@ from utils import encode
 # Generator matrix for shape and creation of codewords
 def datagen_creator(gen_matrix, data_limit=1000000):
     def datagen(batch_size, p, zero_only=True, test_int=False):
-        neg_llr = prob_to_llr(p)
-        pos_llr = -neg_llr
+        pos_llr = -prob_to_llr(p)
         for _ in range(data_limit):
             input_shape = (batch_size, gen_matrix.shape[0])
             if zero_only:
@@ -182,13 +181,14 @@ def datagen_creator(gen_matrix, data_limit=1000000):
             x = y + mask
 
             # Transform from bool to llr
-            x = np.where(x, pos_llr, neg_llr)
-            y = np.where(y, pos_llr, neg_llr)
+            if not test_int:
+                x = np.where(x, pos_llr, -pos_llr)
+                y = np.where(y, pos_llr, -pos_llr)
+            else:
+                x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
+                y = np.where(y, DEFAULT_LLR, -DEFAULT_LLR)
             x = x.astype('float64')
             y = y.astype('float64')
-            if test_int:
-                x = convert_to_int(x)
-                y = convert_to_int(y)
             yield x, y
     return datagen;
 
@@ -225,11 +225,11 @@ active_mat = BCH_4_7
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
-DECIMAL_POINT_BIT = 4
-INT_SIZE = 8
+DECIMAL_POINT_BIT = 1
+INT_SIZE = 4
 
 RESET_VAL = 1
-WIDTH = 8
+WIDTH = 4
 N_LLRS = 4
 EXTENDED_BITS = 4
 
@@ -255,6 +255,12 @@ nx.draw_networkx(G, pos, ax=ax, node_size=300, font_size=9)
 plt.show()
 
 # %% [markdown]
+# ## LLR Value
+
+# %%
+DEFAULT_LLR = int(convert_to_int(-prob_to_llr(CROSS_P).numpy()))
+
+# %% [markdown]
 # ## Graph Data
 
 # %%
@@ -276,6 +282,7 @@ par_dict = {
     'WIDTH': WIDTH,
     'N_LLRS': N_LLRS,
     'EXTENDED_BITS': EXTENDED_BITS,
+    'DEFAULT_LLR': DEFAULT_LLR,
 }
 with open('../data/params.json', 'w') as jout:
     json.dump(par_dict, jout)
@@ -345,3 +352,5 @@ int_model.evaluate(
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr_casted)
+
+# %%
