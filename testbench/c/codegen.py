@@ -32,7 +32,6 @@ def build_source(dict_of_arrays, params, file_name):
     ret += f'const int DEFAULT_LLR = {params["DEFAULT_LLR"]};\n'
     # Define arrays
     for name, val in dict_of_arrays.items():
-        is_binary_flag = ((val == 0) | (val == 1)).all()
         ret += get_array(val, name + '_arr')
     # Define matrices
     for name, val in dict_of_arrays.items():
@@ -40,6 +39,7 @@ def build_source(dict_of_arrays, params, file_name):
     # Create init mat function
     ret += 'void init_adj_mats(){\n'
     for name, val in dict_of_arrays.items():
+        is_binary_flag = ((val == 0) | (val == 1)).all()
         ret += (f'\t{name}_mat = create_mat({name}_arr, {val.shape[0]}, {val.shape[1]}, '
                 f'{1 if is_binary_flag else 0});\n')
     ret += '}\n'
