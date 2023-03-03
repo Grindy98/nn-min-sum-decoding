@@ -57,10 +57,10 @@ import "DPI-C" function void pass_through_model(input int cw[], output logic cw_
 //     outpArrHandle = '{0, 0, 0, 0, 0, 0, 0};
 // endfunction
 
-import "DPI-C" function int generate_cw_init(logic cw[]);
+import "DPI-C" function int generate_cw_init(output logic cw[]);
 
-import "DPI-C" function int generate_cw_noisy_from_init(int cw_out[], logic cw_in[], input real cross_p, input int n_errors);
-import "DPI-C" function int generate_noisy_cw(int cw[], input real cross_p, input int n_errors);
+import "DPI-C" function int generate_cw_noisy_from_init(output int cw_out[], input logic cw_in[], input real cross_p, input int n_errors);
+import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors);
 // function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors) ;
 //     cw = '{0, 0, 0, 0, 0, 0, 0};
 //     return 0;
@@ -157,14 +157,14 @@ task static generate_cw;
     forever begin
         #500 $display("Generating signal");
         
-        // flag = generate_cw_init(generated_cw_initial);
-        // if(flag == 1) begin
-        //     $display("Metaparameters don't match");
-        // end
+        flag = generate_cw_init(generated_cw_initial);
+        if(flag == 1) begin
+            $display("Metaparameters don't match");
+        end
         
-        // flag = generate_cw_noisy_from_init(generated_cw_noisy, generated_cw_initial, cross_p, 1);
+        flag = generate_cw_noisy_from_init(generated_cw_noisy, generated_cw_initial, cross_p, 1);
           
-        flag = generate_noisy_cw(generated_cw_noisy, cross_p, 1);
+        // flag = generate_noisy_cw(generated_cw_noisy, cross_p, 1);
         if(flag == 1) begin
             $display("Metaparameters don't match");
         end
@@ -172,10 +172,11 @@ task static generate_cw;
         w = new();
         for (i=0; i<dut_i.N_V; i=i+1) begin
             w.cw[i] = generated_cw_noisy[i];
+            $display(generated_cw_noisy[i]);
         end
         // Send to dut
         gen_to_dut.put(w);
-
+        
         // Get output from init and C model and send for checking
         cw_initial_packed = {<<1{generated_cw_initial}};
         gen_to_chk_init.put(cw_initial_packed);
@@ -299,6 +300,10 @@ task static check_cw;
 endtask 
 
 initial begin
+    $monitor("E:    %x", dut.layer.proc_elem_v);
+    $monitor("INP:  %x", dut.all_llrs);
+    $monitor("OUT1: %x", dut.o_layer.llr_out_wire);
+    $monitor("OUT2: %x", dut.o_layer.cw_out);
     before_start();
     fork
         generate_cw();
