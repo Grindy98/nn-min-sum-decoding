@@ -14,4 +14,4 @@ import_matrix_wrapper.c
 /hardware/out_layer.v
 /hardware/*_tb.v
 
-simfiles.f
+simfiles*

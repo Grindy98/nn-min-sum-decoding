@@ -53,18 +53,11 @@ import "DPI-C" function void before_start();
 import "DPI-C" function void before_end(); 
 
 import "DPI-C" function void pass_through_model(input int cw[], output logic cw_out[]);
-// function void pass_through_model(int cw[], logic outpArrHandle[]);
-//     outpArrHandle = '{0, 0, 0, 0, 0, 0, 0};
-// endfunction
 
 import "DPI-C" function int generate_cw_init(output logic cw[]);
-
-import "DPI-C" function int generate_cw_noisy_from_init(output int cw_out[], input logic cw_in[], input real cross_p, input int n_errors);
-import "DPI-C" function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors);
-// function int generate_noisy_cw(output int cw[], input real cross_p, input int n_errors) ;
-//     cw = '{0, 0, 0, 0, 0, 0, 0};
-//     return 0;
-// endfunction
+import "DPI-C" function int generate_cw_noisy_from_init(output logic cw_out[], input logic cw_in[], input real cross_p, input int n_errors);
+import "DPI-C" function int cast_cw_to_llr(output int cw_out[], input logic cw_in[]);
+import "DPI-C" function int generate_noisy_llr_cw(output int cw[], input real cross_p, input int n_errors);
 
 export "DPI-C" function c_print_wrapper;
 
@@ -114,7 +107,7 @@ decoder_top #(
 
 initial begin
     clk = 0;
-    forever #50 clk = ~clk;
+    forever #25 clk = ~clk;
 end
 
 initial begin
@@ -148,7 +141,10 @@ task static generate_cw;
     ) w;
     logic generated_cw_initial[N_V-1:0];
     logic [N_V-1:0] cw_initial_packed;
-    int generated_cw_noisy[N_V-1:0];
+    logic generated_cw_noisy[N_V-1:0];
+    logic [N_V-1:0] cw_noisy_packed;
+    int llr_cw_noisy[N_V-1:0];
+
     logic passed_cw [N_V-1:0];
     logic [N_V-1:0] passed_cw_packed;
     logic [LLR_SIZE-1:0] cw_bit [N_V];
@@ -160,19 +156,24 @@ task static generate_cw;
         flag = generate_cw_init(generated_cw_initial);
         if(flag == 1) begin
             $display("Metaparameters don't match");
+            $finish;
         end
         
         flag = generate_cw_noisy_from_init(generated_cw_noisy, generated_cw_initial, cross_p, 1);
-          
-        // flag = generate_noisy_cw(generated_cw_noisy, cross_p, 1);
         if(flag == 1) begin
             $display("Metaparameters don't match");
+            $finish;
+        end
+
+        flag = cast_cw_to_llr(llr_cw_noisy, generated_cw_noisy);
+        if(flag == 1) begin
+            $display("Metaparameters don't match");
+            $finish;
         end
         
         w = new();
         for (i=0; i<dut_i.N_V; i=i+1) begin
-            w.cw[i] = generated_cw_noisy[i];
-            $display(generated_cw_noisy[i]);
+            w.cw[i] = llr_cw_noisy[i];
         end
         // Send to dut
         gen_to_dut.put(w);
@@ -180,8 +181,10 @@ task static generate_cw;
         // Get output from init and C model and send for checking
         cw_initial_packed = {<<1{generated_cw_initial}};
         gen_to_chk_init.put(cw_initial_packed);
+        cw_noisy_packed = {<<1{generated_cw_noisy}};
+        gen_to_chk_init.put(cw_noisy_packed);
 
-        pass_through_model(generated_cw_noisy, passed_cw);
+        pass_through_model(llr_cw_noisy, passed_cw);
         passed_cw_packed = {<<1{passed_cw}};
         gen_to_chk_c.put(passed_cw_packed);
         
@@ -284,16 +287,19 @@ task static check_cw;
 	
 //	call c function input
     automatic logic [N_V-1:0] cw_init;
+    automatic logic [N_V-1:0] cw_noisy;
     automatic logic [N_V-1:0] cw_out_c;
     automatic logic [dut_i.N_V-1:0] cw_out_dut;
     forever begin
         gen_to_chk_init.get(cw_init);
+        gen_to_chk_init.get(cw_noisy);
         gen_to_chk_c.get(cw_out_c);
         dut_to_chk.get(cw_out_dut);
         debug_out_cw_gen = cw_out_c;
         debug_out_cw_dut = cw_out_dut;
         $display("Receiving resulting signals");
         $displayb(cw_init);
+        $displayb(cw_noisy);
         $displayb(cw_out_c);
         $displayb(cw_out_dut);
     end 

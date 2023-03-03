@@ -52,6 +52,11 @@ int generate_cw_init(svOpenArrayHandle arrHandle){
 }
 
 int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandle arrHandleIn, double crossover, int n_errors){
+    if(svSize(arrHandleIn, 1) != svSize(arrHandleOut, 1)){
+        custom_print("ERROR: size not matched");
+        return 1;
+    }
+
     matrix_t* initial = create_mat(NULL, 1, svSize(arrHandleIn, 1), 1);
     for(int i = svRight(arrHandleIn, 1); i <= svLeft(arrHandleIn, 1) ; i++){
         svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleIn, i);
@@ -65,18 +70,42 @@ int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandl
         noisy = apply_fixed_error(initial, n_errors);
     }
 
-    matrix_t* casted_noisy = cast_to_llr(noisy);
     for(int i = svRight(arrHandleOut, 1); i <= svLeft(arrHandleOut, 1) ; i++){
-        int* arrElem = (int*)svGetArrElemPtr1(arrHandleOut, i);
-        *arrElem = (int)get_elem(casted_noisy, 0, i);
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleOut, i);
+        *arrElem = get_elem(noisy, 0, i);
     }
-    free_mat(&casted_noisy);
+
     free_mat(&noisy);
     free_mat(&initial);
     return 0;
 }
 
-int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
+int cast_cw_to_llr(svOpenArrayHandle intArrHandleOut, svOpenArrayHandle arrHandleIn){
+    if(svSize(arrHandleIn, 1) != svSize(intArrHandleOut, 1)){
+        custom_print("ERROR: size not matched");
+        return 1;
+    }
+
+    matrix_t* initial = create_mat(NULL, 1, svSize(arrHandleIn, 1), 1);
+    for(int i = svRight(arrHandleIn, 1); i <= svLeft(arrHandleIn, 1) ; i++){
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleIn, i);
+        put_elem(initial, 0, i, (int)*arrElem);
+    }
+    
+    matrix_t* casted;
+    casted = cast_to_llr(initial);
+
+    for(int i = svRight(intArrHandleOut, 1); i <= svLeft(intArrHandleOut, 1) ; i++){
+        int* arrElem = (int*)svGetArrElemPtr1(intArrHandleOut, i);
+        *arrElem = (int)get_elem(casted, 0, i);
+    }
+
+    free_mat(&casted);
+    free_mat(&initial);
+    return 0;
+}
+
+int generate_noisy_llr_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
     matrix_t* initial = generate_random_codeword(generator_mat);
     
     custom_print("Initial CW:\t");
