@@ -207,6 +207,8 @@ def generate_adj_matrix_data(tanner_graph):
 
 # %% [markdown]
 # ## Configurations
+#
+# **RERUN FROM HERE FOR CHANGES IN PARAMETERS**
 
 # %%
 print(H_4_7)
@@ -225,11 +227,11 @@ active_mat = BCH_4_7
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
-DECIMAL_POINT_BIT = 1
-INT_SIZE = 4
+DECIMAL_POINT_BIT = 4
+INT_SIZE = 8
 
 RESET_VAL = 1
-WIDTH = 4
+WIDTH = 8
 N_LLRS = 4
 EXTENDED_BITS = 4
 
@@ -261,36 +263,9 @@ plt.show()
 DEFAULT_LLR = int(convert_to_int(-prob_to_llr(CROSS_P).numpy()))
 
 # %% [markdown]
-# ## Graph Data
-
-# %%
-# Matrix data
-adj_matrix_dict = generate_adj_matrix_data(G)
-np.savez('../data/adj_matrices.npz', **adj_matrix_dict)
-np.save('../data/generator.npy', gen_mat)
-
-# %%
-# Parameters
-par_dict = {
-    'N_V': adj_matrix_dict['odd_inp_layer_mask'].shape[0], 
-    'E': adj_matrix_dict['odd_prev_layer_mask'].shape[0], 
-    'DECIMAL_POINT_BIT': DECIMAL_POINT_BIT,
-    'INT_SIZE': INT_SIZE,
-    'BF_ITERS': BF_ITERS,
-    'CROSS_P': CROSS_P,
-    'RESET_VAL': RESET_VAL,
-    'WIDTH': WIDTH,
-    'N_LLRS': N_LLRS,
-    'EXTENDED_BITS': EXTENDED_BITS,
-    'DEFAULT_LLR': DEFAULT_LLR,
-}
-with open('../data/params.json', 'w') as jout:
-    json.dump(par_dict, jout)
-
-# %% [markdown]
 # ## Model Compile and Fit
 #
-# **RERUN FROM HERE IF MODEL PARAMETERS ALTERED**
+# **RERUN FROM HERE FOR MODEL REFRESH**
 
 # %%
 model, n_v = get_compiled_model(G, BF_ITERS)
@@ -349,8 +324,111 @@ int_model.evaluate(
     steps=100 
 )
 
+# %% [markdown]
+# # EXPORTS
+
+# %%
+# Matrix data
+adj_matrix_dict = generate_adj_matrix_data(G)
+np.savez('../data/adj_matrices.npz', **adj_matrix_dict)
+np.save('../data/generator.npy', gen_mat)
+
+# %%
+# Parameters
+par_dict = {
+    'N_V': adj_matrix_dict['odd_inp_layer_mask'].shape[0], 
+    'E': adj_matrix_dict['odd_prev_layer_mask'].shape[0], 
+    'DECIMAL_POINT_BIT': DECIMAL_POINT_BIT,
+    'INT_SIZE': INT_SIZE,
+    'BF_ITERS': BF_ITERS,
+    'CROSS_P': CROSS_P,
+    'RESET_VAL': RESET_VAL,
+    'WIDTH': WIDTH,
+    'N_LLRS': N_LLRS,
+    'EXTENDED_BITS': EXTENDED_BITS,
+    'DEFAULT_LLR': DEFAULT_LLR,
+}
+with open('../data/params.json', 'w') as jout:
+    json.dump(par_dict, jout)
+
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr_casted)
+
+# %% [markdown]
+# # DEBUG / IMPORTS
+#
+# **ONLY RUN WITHOUT RUNNING THE EXPORTS SECTION**
+
+# %%
+bias_arr_casted = np.load('../data/biases.npy')
+set_bias_arr(int_model, bias_arr_casted.astype('float64'))
+int_model.evaluate(
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False, test_int=True),
+    steps=100 
+)
+
+# %%
+x = np.array([int(x) for x in list('0110000')]).reshape(1, 7)
+x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
+x = x.astype('float32')
+y = int_model.predict(x)
+np.where(x > 0, 1, 0)
+
+# %%
+y
+
+# %%
+hl_1 = int_model.get_layer(name='hl_1')(x)
+hl_1
+
+# %%
+hl_2 = int_model.get_layer(name='hl_2')(hl_1)
+hl_2
+
+# %%
+int_model.get_layer(name='hl_2').bias
+
+# %%
+hl_3 = int_model.get_layer(name='hl_3')([x, hl_2])
+hl_3
+
+# %%
+hl_4 = int_model.get_layer(name='hl_4')(hl_3)
+hl_4
+
+# %%
+int_model.get_layer(name='hl_4').bias
+
+# %%
+hl_5 = int_model.get_layer(name='hl_5')([x, hl_4])
+hl_5
+
+# %%
+hl_6 = int_model.get_layer(name='hl_6')(hl_5)
+hl_6
+
+# %%
+hl_7 = int_model.get_layer(name='hl_7')([x, hl_6])
+hl_7
+
+# %%
+hl_8 = int_model.get_layer(name='hl_8')(hl_7)
+hl_8
+
+# %%
+hl_9 = int_model.get_layer(name='hl_9')([x, hl_8])
+hl_9
+
+# %%
+hl_10 = int_model.get_layer(name='hl_10')(hl_9)
+hl_10
+
+# %%
+out = int_model.get_layer(name='out')([x, hl_10])
+out
+
+# %%
+tf.keras.utils.plot_model(int_model, show_shapes=True)
 
 # %%
