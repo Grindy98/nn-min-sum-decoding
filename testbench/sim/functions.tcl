@@ -28,3 +28,9 @@ proc sim {} {
 	
 	run 10us
 }
+
+proc simcln {} {
+	ref
+	comp
+	sim
+}
