@@ -123,7 +123,7 @@ class EvenLayer(Layer):
         mins = tf.reduce_min(abs_in + self.inf_mask, -1)
 
         # Add beta weight
-        biased_mins = tf.maximum(mins - self.bias, 0)
+        biased_mins = tf.maximum(mins + self.bias, 0)
         
         return biased_mins * signs
 

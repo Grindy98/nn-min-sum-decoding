@@ -62,10 +62,16 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
         }
         put_elem(minimum, 0, i, curr_min);
     }
+    // Bias addition and flooring of result
+    matrix_t* post_processing = mat_sum(minimum, layer.biases);
+    for (int j = 0; j < post_processing->col_size; j++){
+        if(get_elem(post_processing, 0, j) < 0){
+            put_elem(post_processing, 0, j, 0);
+        }
+    }
 
     // Final matrix
-    matrix_t* post_processing = mat_pointwise_mul(signs, minimum);
-    matrix_t* final = mat_sum(post_processing, layer.biases);
+    matrix_t* final = mat_pointwise_mul(signs, post_processing);
     mat_apply_saturation(final);
     
     free_mat(&signs);

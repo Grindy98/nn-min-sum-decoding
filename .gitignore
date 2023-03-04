@@ -3,6 +3,7 @@
 .vscode
 __pycache__
 *.ipynb
+*.png
 
 **/build/
 import_matrix_wrapper.c
