@@ -28,8 +28,9 @@ def build_source(dict_of_arrays, params, file_name):
     ret = ''
     ret += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
     ret += f'#include "{file_name}.h"\n'
-    # Define LLR value
+    # Define const params
     ret += f'const int DEFAULT_LLR = {params["DEFAULT_LLR"]};\n'
+    ret += f'const int CINT_SIZE = {params["INT_SIZE"]};\n'
     # Define arrays
     for name, val in dict_of_arrays.items():
         ret += get_array(val, name + '_arr')

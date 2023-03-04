@@ -146,18 +146,21 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
             A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
-    // If both matrices are mod two, resul is also mod two
-    int mod_two_flag = A->is_mod_two && B->is_mod_two;
+    // Can't add matrices of different mod
+    if(A->is_mod_two != B->is_mod_two){
+        custom_print("Matrices must have same type\n");
+        exit(1);
+    }
 
     int new_row = A->row_size;
     int new_col = A->col_size;
-    matrix_t* new_mat = create_mat(NULL, new_row, new_col, mod_two_flag);
+    matrix_t* new_mat = create_mat(NULL, new_row, new_col, A->is_mod_two);
     for (int i = 0; i < new_row; i++)
     {
         for (int j = 0; j < new_col; j++)
         {
             int64_t new_sum = get_elem(A, i, j) + get_elem(B, i, j);
-            put_elem(new_mat, i, j, mod_two_flag ? (new_sum % 2) : new_sum);
+            put_elem(new_mat, i, j, A->is_mod_two ? (new_sum % 2) : new_sum);
         }
         
     }
