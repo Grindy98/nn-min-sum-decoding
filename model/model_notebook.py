@@ -369,7 +369,7 @@ int_model.evaluate(
 )
 
 # %%
-x = np.array([int(x) for x in list('0110000')]).reshape(1, 7)
+x = np.array([int(x) for x in list('0100101')]).reshape(1, 7)
 x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
 x = x.astype('float32')
 y = int_model.predict(x)
