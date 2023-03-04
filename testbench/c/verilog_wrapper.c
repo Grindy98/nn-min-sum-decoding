@@ -1,9 +1,11 @@
-#include <svdpi.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
 
+#include "dpiheader.h"
+
+#include "print.h"
 #include "channel.h"
 #include "layer.h"
 #include "import_matrix_wrapper.h"
@@ -11,7 +13,7 @@
 
 void before_start(){
     // Seed for rng
-    srand(time(0));
+    srand(2132);
     init_adj_mats();
 }
 
@@ -19,21 +21,100 @@ void before_end(){
     free_adj_mats();
 }
 
-void c_print_wrapper(const char* str);
-
-void logger(const char *fmt, ...) {
+int custom_print(const char *fmt, ...) {
     char outstr[100];
+    int ret;
     va_list args;
     va_start(args, fmt);
-    vsnprintf(outstr, 100, fmt, args);
+    ret = vsnprintf(outstr, 100, fmt, args);
     va_end(args);
-    c_print_wrapper(outstr);
+    //c_print_wrapper(outstr);
+    printf("%s", outstr);
+    return ret;
 }
 
-int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
+int generate_cw_init(svOpenArrayHandle arrHandle){
     matrix_t* initial = generate_random_codeword(generator_mat);
+    
     if(initial->col_size != svSize(arrHandle, 1)){
         free_mat(&initial);
+        custom_print("ERROR: size not matched");
+        return 1;
+    }
+
+    for(int i = svRight(arrHandle, 1); i <= svLeft(arrHandle, 1) ; i++){
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandle, i);
+        *arrElem = get_elem(initial, 0, i);
+    }
+
+    free_mat(&initial);
+    return 0;
+}
+
+int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandle arrHandleIn, double crossover, int n_errors){
+    if(svSize(arrHandleIn, 1) != svSize(arrHandleOut, 1)){
+        custom_print("ERROR: size not matched");
+        return 1;
+    }
+
+    matrix_t* initial = create_mat(NULL, 1, svSize(arrHandleIn, 1), 1);
+    for(int i = svRight(arrHandleIn, 1); i <= svLeft(arrHandleIn, 1) ; i++){
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleIn, i);
+        put_elem(initial, 0, i, (int)*arrElem);
+    }
+    
+    matrix_t* noisy;
+    if(n_errors <= 0){
+        noisy = apply_channel(initial, crossover);
+    }else{
+        noisy = apply_fixed_error(initial, n_errors);
+    }
+
+    for(int i = svRight(arrHandleOut, 1); i <= svLeft(arrHandleOut, 1) ; i++){
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleOut, i);
+        *arrElem = get_elem(noisy, 0, i);
+    }
+
+    free_mat(&noisy);
+    free_mat(&initial);
+    return 0;
+}
+
+int cast_cw_to_llr(svOpenArrayHandle intArrHandleOut, svOpenArrayHandle arrHandleIn){
+    if(svSize(arrHandleIn, 1) != svSize(intArrHandleOut, 1)){
+        custom_print("ERROR: size not matched");
+        return 1;
+    }
+
+    matrix_t* initial = create_mat(NULL, 1, svSize(arrHandleIn, 1), 1);
+    for(int i = svRight(arrHandleIn, 1); i <= svLeft(arrHandleIn, 1) ; i++){
+        svLogic* arrElem = (svLogic*)svGetArrElemPtr1(arrHandleIn, i);
+        put_elem(initial, 0, i, (int)*arrElem);
+    }
+    
+    matrix_t* casted;
+    casted = cast_to_llr(initial);
+
+    for(int i = svRight(intArrHandleOut, 1); i <= svLeft(intArrHandleOut, 1) ; i++){
+        int* arrElem = (int*)svGetArrElemPtr1(intArrHandleOut, i);
+        *arrElem = (int)get_elem(casted, 0, i);
+    }
+
+    free_mat(&casted);
+    free_mat(&initial);
+    return 0;
+}
+
+int generate_noisy_llr_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
+    matrix_t* initial = generate_random_codeword(generator_mat);
+    
+    custom_print("Initial CW:\t");
+    
+    display_mat(initial);
+    
+    if(initial->col_size != svSize(arrHandle, 1)){
+        free_mat(&initial);
+        custom_print("ERROR: size not matched");
         return 1;
     }
     matrix_t* noisy;
@@ -42,14 +123,18 @@ int generate_noisy_cw(svOpenArrayHandle arrHandle, double crossover, int n_error
     }else{
         noisy = apply_fixed_error(initial, n_errors);
     }
+
+    custom_print("Error CW:\t");
+    display_mat(noisy);
+
     matrix_t* casted_noisy = cast_to_llr(noisy);
     for(int i = svRight(arrHandle, 1); i <= svLeft(arrHandle, 1) ; i++){
         int* arrElem = (int*)svGetArrElemPtr1(arrHandle, i);
         *arrElem = (int)get_elem(casted_noisy, 0, i);
     }
     free_mat(&casted_noisy);
-    free_mat(&noisy);
-    free_mat(&initial);
+    free_mat(&noisy); 
+    free_mat(&initial); 
     return 0;
 }
 

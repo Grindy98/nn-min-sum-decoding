@@ -2,7 +2,7 @@
 #define MATRIX
 
 #include <stdint.h>
-#define CINT_SIZE 8
+extern const int CINT_SIZE;
 
 
 typedef struct matrix_t{

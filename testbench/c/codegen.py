@@ -1,10 +1,12 @@
 import argparse
 import os.path as path
+import json
 
 import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument('i', type=str, nargs='+')
+parser.add_argument('-p', type=str, nargs=1)
 parser.add_argument('-o', type=str, nargs=1)
 
 def get_array(arr, arr_name):
@@ -22,12 +24,15 @@ def get_array(arr, arr_name):
     return ret
 
 
-def build_source(dict_of_arrays, file_name):
+def build_source(dict_of_arrays, params, file_name):
     ret = ''
+    ret += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
     ret += f'#include "{file_name}.h"\n'
+    # Define const params
+    ret += f'const int DEFAULT_LLR = {params["DEFAULT_LLR"]};\n'
+    ret += f'const int CINT_SIZE = {params["INT_SIZE"]};\n'
     # Define arrays
     for name, val in dict_of_arrays.items():
-        is_binary_flag = ((val == 0) | (val == 1)).all()
         ret += get_array(val, name + '_arr')
     # Define matrices
     for name, val in dict_of_arrays.items():
@@ -35,6 +40,7 @@ def build_source(dict_of_arrays, file_name):
     # Create init mat function
     ret += 'void init_adj_mats(){\n'
     for name, val in dict_of_arrays.items():
+        is_binary_flag = ((val == 0) | (val == 1)).all()
         ret += (f'\t{name}_mat = create_mat({name}_arr, {val.shape[0]}, {val.shape[1]}, '
                 f'{1 if is_binary_flag else 0});\n')
     ret += '}\n'
@@ -49,6 +55,7 @@ def main():
     args = parser.parse_args()
     with open(args.o[0] + '.c', 'w') as out_file_c:
         data = {}
+        params = {}
         for inp in args.i:
             with open(inp, 'rb') as infile:
                 if path.splitext(inp)[1] == '.npz':
@@ -58,7 +65,10 @@ def main():
                 else:
                     raise argparse.ArgumentError('Input files do not have proper format')
 
-        source_out = build_source(data, args.o[0])
+        with open(args.p[0], 'r') as infile:
+            params = json.load(infile)
+
+        source_out = build_source(data, params, args.o[0])
         out_file_c.write(source_out)
 
 main()

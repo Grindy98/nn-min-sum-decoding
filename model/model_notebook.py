@@ -25,6 +25,7 @@
 # ## Imports and Data Load
 
 # %%
+import json
 import tensorflow as tf
 import scipy.io
 
@@ -49,6 +50,9 @@ H_4_7 = swap_form(np.array(const_dict['H_4_7']))
 BCH_16_31 = np.array(tf.constant(
     galois.generator_to_parity_check_matrix(
         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
+BCH_4_7 = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(7, galois.BCH(7, 4).generator_poly))))
 
 # %% [markdown]
 # ## Function Definitions
@@ -161,8 +165,7 @@ from utils import encode
 # Generator matrix for shape and creation of codewords
 def datagen_creator(gen_matrix, data_limit=1000000):
     def datagen(batch_size, p, zero_only=True, test_int=False):
-        neg_llr = prob_to_llr(p)
-        pos_llr = -neg_llr
+        pos_llr = -prob_to_llr(p)
         for _ in range(data_limit):
             input_shape = (batch_size, gen_matrix.shape[0])
             if zero_only:
@@ -178,13 +181,14 @@ def datagen_creator(gen_matrix, data_limit=1000000):
             x = y + mask
 
             # Transform from bool to llr
-            x = np.where(x, pos_llr, neg_llr)
-            y = np.where(y, pos_llr, neg_llr)
+            if not test_int:
+                x = np.where(x, pos_llr, -pos_llr)
+                y = np.where(y, pos_llr, -pos_llr)
+            else:
+                x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
+                y = np.where(y, DEFAULT_LLR, -DEFAULT_LLR)
             x = x.astype('float64')
             y = y.astype('float64')
-            if test_int:
-                x = convert_to_int(x)
-                y = convert_to_int(y)
             yield x, y
     return datagen;
 
@@ -203,10 +207,22 @@ def generate_adj_matrix_data(tanner_graph):
 
 # %% [markdown]
 # ## Configurations
+#
+# **RERUN FROM HERE FOR CHANGES IN PARAMETERS**
 
 # %%
+print(H_4_7)
+
+# %%
+print(BCH_4_7)
+
+# %%
+# Generator matrix
+
 # active_mat = H_32_44
-active_mat = BCH_16_31
+# active_mat = BCH_16_31
+active_mat = BCH_4_7
+
 # active_mat = np.array(tf.constant(
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
@@ -214,9 +230,14 @@ active_mat = BCH_16_31
 DECIMAL_POINT_BIT = 4
 INT_SIZE = 8
 
+RESET_VAL = 1
+WIDTH = 8
+N_LLRS = 4
+EXTENDED_BITS = 4
+
 BF_ITERS = 5
 
-p = 0.01
+CROSS_P = 0.01
 
 # %% [markdown]
 # # Model training and testing
@@ -235,24 +256,26 @@ fig, ax = plt.subplots(figsize=[8, 12])
 nx.draw_networkx(G, pos, ax=ax, node_size=300, font_size=9)
 plt.show()
 
+# %% [markdown]
+# ## LLR Value
+
 # %%
-np.savez('../data/adj_matrices.npz', **generate_adj_matrix_data(G))
-np.save('../data/generator.npy', gen_mat)
+DEFAULT_LLR = int(convert_to_int(-prob_to_llr(CROSS_P).numpy()))
 
 # %% [markdown]
 # ## Model Compile and Fit
 #
-# **RERUN FROM HERE IF MODEL PARAMETERS ALTERED**
+# **RERUN FROM HERE FOR MODEL REFRESH**
 
 # %%
 model, n_v = get_compiled_model(G, BF_ITERS)
-# model.summary()
+model.summary()
 
 # %%
 # tf.keras.utils.plot_model(model, show_shapes=True)
 
 # %%
-gen = datagen_creator(gen_mat)(120, p)
+gen = datagen_creator(gen_mat)(120, CROSS_P)
 
 # %%
 history = model.fit(
@@ -277,7 +300,7 @@ history = model.fit(
 
 # %%
 model.evaluate(
-    x=datagen_creator(gen_mat)(120, p, zero_only=False),
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False),
     steps=100 
 )
 
@@ -297,12 +320,115 @@ set_bias_arr(int_model, bias_arr_casted.astype('float64'))
 
 # %%
 int_model.evaluate(
-    x=datagen_creator(gen_mat)(120, p, zero_only=False, test_int=True),
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False, test_int=True),
     steps=100 
 )
+
+# %% [markdown]
+# # EXPORTS
+
+# %%
+# Matrix data
+adj_matrix_dict = generate_adj_matrix_data(G)
+np.savez('../data/adj_matrices.npz', **adj_matrix_dict)
+np.save('../data/generator.npy', gen_mat)
+
+# %%
+# Parameters
+par_dict = {
+    'N_V': adj_matrix_dict['odd_inp_layer_mask'].shape[0], 
+    'E': adj_matrix_dict['odd_prev_layer_mask'].shape[0], 
+    'DECIMAL_POINT_BIT': DECIMAL_POINT_BIT,
+    'INT_SIZE': INT_SIZE,
+    'BF_ITERS': BF_ITERS,
+    'CROSS_P': CROSS_P,
+    'RESET_VAL': RESET_VAL,
+    'WIDTH': WIDTH,
+    'N_LLRS': N_LLRS,
+    'EXTENDED_BITS': EXTENDED_BITS,
+    'DEFAULT_LLR': DEFAULT_LLR,
+}
+with open('../data/params.json', 'w') as jout:
+    json.dump(par_dict, jout)
 
 # %%
 # Save biases
 np.save('../data/biases.npy', bias_arr_casted)
+
+# %% [markdown]
+# # DEBUG / IMPORTS
+#
+# **ONLY RUN WITHOUT RUNNING THE EXPORTS SECTION**
+
+# %%
+bias_arr_casted = np.load('../data/biases.npy')
+set_bias_arr(int_model, bias_arr_casted.astype('float64'))
+int_model.evaluate(
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False, test_int=True),
+    steps=100 
+)
+
+# %%
+x = np.array([int(x) for x in list('0100101')]).reshape(1, 7)
+x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
+x = x.astype('float32')
+y = int_model.predict(x)
+np.where(x > 0, 1, 0)
+
+# %%
+y
+
+# %%
+hl_1 = int_model.get_layer(name='hl_1')(x)
+hl_1
+
+# %%
+hl_2 = int_model.get_layer(name='hl_2')(hl_1)
+hl_2
+
+# %%
+int_model.get_layer(name='hl_2').bias
+
+# %%
+hl_3 = int_model.get_layer(name='hl_3')([x, hl_2])
+hl_3
+
+# %%
+hl_4 = int_model.get_layer(name='hl_4')(hl_3)
+hl_4
+
+# %%
+int_model.get_layer(name='hl_4').bias
+
+# %%
+hl_5 = int_model.get_layer(name='hl_5')([x, hl_4])
+hl_5
+
+# %%
+hl_6 = int_model.get_layer(name='hl_6')(hl_5)
+hl_6
+
+# %%
+hl_7 = int_model.get_layer(name='hl_7')([x, hl_6])
+hl_7
+
+# %%
+hl_8 = int_model.get_layer(name='hl_8')(hl_7)
+hl_8
+
+# %%
+hl_9 = int_model.get_layer(name='hl_9')([x, hl_8])
+hl_9
+
+# %%
+hl_10 = int_model.get_layer(name='hl_10')(hl_9)
+hl_10
+
+# %%
+out = int_model.get_layer(name='out')([x, hl_10])
+out
+
+# %%
+tf.keras.utils.plot_model(int_model, show_shapes=True)
 
 # %%

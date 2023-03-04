@@ -1,11 +1,11 @@
 #include "layer.h"
 #include <stdlib.h>
-#include <stdio.h>
+#include "print.h"
 
 matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* from_prev_layer){
     // Make sure inputs are row vectors
     if(from_input->row_size != 1 || from_prev_layer->row_size != 1){
-        printf("Inputs have to be row vectors\n");
+        custom_print("Inputs have to be row vectors\n");
         exit(1);
     }
     matrix_t* masked_input = mat_mul(from_input, layer.input_mask);
@@ -21,7 +21,7 @@ matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* fro
 matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     // Make sure input is a row vector
     if(from_prev_layer->row_size != 1){
-        printf("Inputs have to be row vectors\n");
+        custom_print("Inputs have to be row vectors\n");
         exit(1);
     }
     
@@ -62,10 +62,16 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
         }
         put_elem(minimum, 0, i, curr_min);
     }
+    // Bias addition and flooring of result
+    matrix_t* post_processing = mat_sum(minimum, layer.biases);
+    for (int j = 0; j < post_processing->col_size; j++){
+        if(get_elem(post_processing, 0, j) < 0){
+            put_elem(post_processing, 0, j, 0);
+        }
+    }
 
     // Final matrix
-    matrix_t* post_processing = mat_pointwise_mul(signs, minimum);
-    matrix_t* final = mat_sum(post_processing, layer.biases);
+    matrix_t* final = mat_pointwise_mul(signs, post_processing);
     mat_apply_saturation(final);
     
     free_mat(&signs);
@@ -77,7 +83,7 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
 matrix_t* process_output(outputlayer_t layer, matrix_t* from_input, matrix_t* from_prev_layer){
     // Make sure inputs are row vectors
     if(from_input->row_size != 1 || from_prev_layer->row_size != 1){
-        printf("Inputs have to be row vectors\n");
+        custom_print("Inputs have to be row vectors\n");
         exit(1);
     }
     matrix_t* masked_prev = mat_mul(from_prev_layer, layer.output_mask);
