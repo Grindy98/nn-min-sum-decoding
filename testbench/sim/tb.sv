@@ -59,11 +59,13 @@ import "DPI-C" function int generate_cw_noisy_from_init(output logic cw_out[], i
 import "DPI-C" function int cast_cw_to_llr(output int cw_out[], input logic cw_in[]);
 import "DPI-C" function int generate_noisy_llr_cw(output int cw[], input real cross_p, input int n_errors);
 
+/*
 export "DPI-C" function c_print_wrapper;
 
 function void c_print_wrapper(input string to_print);
     $write("%s", to_print);
 endfunction
+*/
 
 localparam LLR_SIZE = `WIDTH_IN;
 localparam N_V = `N_V;

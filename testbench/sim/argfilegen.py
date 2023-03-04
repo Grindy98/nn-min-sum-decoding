@@ -24,7 +24,11 @@ def main():
     print(f'Written {args.v[0]}')
 
     with open(args.c[0], 'w') as outf:
-        # Add all c files
+        # Add tb and include lib for header file gen
+        outf.write(tb.resolve().as_posix() + '\n')
+        outf.write('+incdir+' + v.resolve().as_posix() + '\n\n')
+        
+        # Add all c files minus the test file
         outf.writelines('\n'.join([p.resolve().as_posix() for p in c.glob('*.c') if p.name != 'test.c']))
     print(f'Written {args.c[0]}')
 

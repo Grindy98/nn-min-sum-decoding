@@ -2,7 +2,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
-#include <svdpi.h>
+
+#include "dpiheader.h"
 
 #include "print.h"
 #include "channel.h"
@@ -20,8 +21,6 @@ void before_end(){
     free_adj_mats();
 }
 
-void c_print_wrapper(const char* str);
-
 int custom_print(const char *fmt, ...) {
     char outstr[100];
     int ret;
@@ -29,7 +28,8 @@ int custom_print(const char *fmt, ...) {
     va_start(args, fmt);
     ret = vsnprintf(outstr, 100, fmt, args);
     va_end(args);
-    c_print_wrapper(outstr);
+    //c_print_wrapper(outstr);
+    printf("%s", outstr);
     return ret;
 }
 

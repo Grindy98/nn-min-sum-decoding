@@ -13,7 +13,7 @@ proc ref {} {
 	puts [exec ${GIT_REPO_PATH}/testbench/sim/globalgen.bat]
 	
 	puts "------------- C COMPILE -------------------"
-	vlog -ccflags \"-std=c99\" -f ${GIT_REPO_PATH}/testbench/sim/simfiles_c.f
+	vlog -sv -dpiheader dpiheader.h -ccflags "-std=c99" -f ${GIT_REPO_PATH}/testbench/sim/simfiles_c.f
 }
 
 proc comp {} {
