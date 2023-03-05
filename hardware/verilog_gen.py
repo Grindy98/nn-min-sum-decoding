@@ -187,10 +187,10 @@ def build_checkn_source(adj_mat_dict, file_name):
         for prev_i in range(0, n_edges):
             if adj_mat_dict['even_prev_layer_mask'][prev_i][edge_i] == 1:
                 # get the minimum
-                src += '\t\t' + f'if (reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] > abs_prev_proc_elem[(WIDTH * {edge_i + 1}) - 1 -: WIDTH]) begin\n'
-                src += '\t\t\t' + f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] = abs_prev_proc_elem[(WIDTH * {edge_i + 1}) - 1 -: WIDTH];\n'
+                src += '\t\t' + f'if (reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] > abs_prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]) begin\n'
+                src += '\t\t\t' + f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] = abs_prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH];\n'
                 src += '\t\t' + 'end\n'
-
+                src += f'\t\t $display("{edge_i} - %x", reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH]);'
                 src += '\n\t\t' + f'reg_sign[{edge_i}] = reg_sign[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
 
         # min + bias
@@ -245,7 +245,7 @@ def build_lut_source(data_dict, file_name):
     # for every iteration
     for i in range(data_dict['biases'].shape[0]):
         row = data_dict['biases'][i, :]
-        bin_str = ''.join([np.binary_repr(x, width=params_dict["WIDTH"]) for x in row])
+        bin_str = ''.join([np.binary_repr(x, width=params_dict["WIDTH"]) for x in row][::-1])
         src += f'\t\t`INT_SIZE\'d{i} : bias = {len(bin_str)}\'b{bin_str};\n'
     
     # add default at the end
@@ -289,15 +289,17 @@ def build_outl_source(adj_mat_dict, file_name):
     # add registers
     # temp_reg will be used for the sum with saturation
     src += '\t' + 'reg [EXTENDED_WIDTH * N_V - 1 : 0] temp_reg;\n\n'
-    src += '\t' + 'wire [WIDTH * N_V - 1 : 0] llr_out_wire;\n\n'
+    #src += '\t' + 'wire [WIDTH * N_V - 1 : 0] llr_out_wire;\n\n'
 
     # instantiate the saturation module
-    src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
-            ' sat[N_V - 1 : 0] (.in(temp_reg), .out(llr_out_wire));\n'
+    #src += '\t' + 'saturate #(.WIDTH(WIDTH), .EXTENDED_BITS(EXTENDED_BITS))' +\
+    #        ' sat[N_V - 1 : 0] (.in(temp_reg), .out(llr_out_wire));\n'
 
     # instantiate the hard decision extraction module
-    src += '\t' + 'llr_to_out #(.WIDTH(WIDTH)) ' +\
-                'lto[N_V - 1 : 0] (.in(llr_out_wire), .out(cw_out));\n\n'            
+    #src += '\t' + 'llr_to_out #(.WIDTH(WIDTH)) ' +\
+    #            'lto[N_V - 1 : 0] (.in(llr_out_wire), .out(cw_out));\n\n'        
+    src += '\t' + 'llr_to_out #(.WIDTH(EXTENDED_WIDTH)) ' +\
+               'lto[N_V - 1 : 0] (.in(temp_reg), .out(cw_out));\n\n'       
 
     # combinational logic segment
     src += '\n\t' + 'always @* begin\n'
