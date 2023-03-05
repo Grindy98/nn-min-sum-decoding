@@ -70,8 +70,8 @@ void mat_apply_saturation(matrix_t* A){
     maxsize <<= CINT_SIZE - 1;
     maxsize -= 1;
 
-    int64_t minsize = -1;
-    minsize <<= CINT_SIZE - 1;
+    // Not the actual min because there needs to be symmetry when applying abs()
+    int64_t minsize = -maxsize;
 
     for (int i = 0; i < A->row_size; i++)
     {
