@@ -22,15 +22,15 @@ proc comp {} {
 	vlog -sv -f ${GIT_REPO_PATH}/testbench/sim/simfiles_v.f
 }
 
-proc sim {} {
+proc sim { {time 10us} } {
 	vsim work.tb
 	do wave.do
 	
-	run 10us
+	run $time
 }
 
-proc simcln {} {
+proc simcln { {time 10us} } {
 	ref
 	comp
-	sim
+	sim $time
 }

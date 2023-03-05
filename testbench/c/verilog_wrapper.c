@@ -21,7 +21,10 @@ void before_end(){
     free_adj_mats();
 }
 
-int custom_print(const char *fmt, ...) {
+int custom_print (const char flag, const char * fmt, ... ){
+    if(flag != 'v' && flag != '+'){
+        return 0;
+    } 
     char outstr[100];
     int ret;
     va_list args;
@@ -38,7 +41,7 @@ int generate_cw_init(svOpenArrayHandle arrHandle){
     
     if(initial->col_size != svSize(arrHandle, 1)){
         free_mat(&initial);
-        custom_print("ERROR: size not matched");
+        custom_print('+', "ERROR: size not matched");
         return 1;
     }
 
@@ -53,7 +56,7 @@ int generate_cw_init(svOpenArrayHandle arrHandle){
 
 int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandle arrHandleIn, double crossover, int n_errors){
     if(svSize(arrHandleIn, 1) != svSize(arrHandleOut, 1)){
-        custom_print("ERROR: size not matched");
+        custom_print('+', "ERROR: size not matched");
         return 1;
     }
 
@@ -82,7 +85,7 @@ int generate_cw_noisy_from_init(svOpenArrayHandle arrHandleOut, svOpenArrayHandl
 
 int cast_cw_to_llr(svOpenArrayHandle intArrHandleOut, svOpenArrayHandle arrHandleIn){
     if(svSize(arrHandleIn, 1) != svSize(intArrHandleOut, 1)){
-        custom_print("ERROR: size not matched");
+        custom_print('+', "ERROR: size not matched");
         return 1;
     }
 
@@ -108,13 +111,13 @@ int cast_cw_to_llr(svOpenArrayHandle intArrHandleOut, svOpenArrayHandle arrHandl
 int generate_noisy_llr_cw(svOpenArrayHandle arrHandle, double crossover, int n_errors){
     matrix_t* initial = generate_random_codeword(generator_mat);
     
-    custom_print("Initial CW:\t");
+    custom_print('+', "Initial CW:\t");
     
-    display_mat(initial);
+    display_mat('+', initial);
     
     if(initial->col_size != svSize(arrHandle, 1)){
         free_mat(&initial);
-        custom_print("ERROR: size not matched");
+        custom_print('+', "ERROR: size not matched");
         return 1;
     }
     matrix_t* noisy;
@@ -124,8 +127,8 @@ int generate_noisy_llr_cw(svOpenArrayHandle arrHandle, double crossover, int n_e
         noisy = apply_fixed_error(initial, n_errors);
     }
 
-    custom_print("Error CW:\t");
-    display_mat(noisy);
+    custom_print('+', "Error CW:\t");
+    display_mat('+', noisy);
 
     matrix_t* casted_noisy = cast_to_llr(noisy);
     for(int i = svRight(arrHandle, 1); i <= svLeft(arrHandle, 1) ; i++){

@@ -5,13 +5,15 @@
 matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* from_prev_layer){
     // Make sure inputs are row vectors
     if(from_input->row_size != 1 || from_prev_layer->row_size != 1){
-        custom_print("Inputs have to be row vectors\n");
+        custom_print('+', "Inputs have to be row vectors\n");
         exit(1);
     }
     matrix_t* masked_input = mat_mul(from_input, layer.input_mask);
     matrix_t* masked_prev = mat_mul(from_prev_layer, layer.prev_layer_mask);
     matrix_t* sum = mat_sum(masked_input, masked_prev);
     mat_apply_saturation(sum);
+    custom_print('c', "oddl\n");
+    display_mat('C', sum);
 
     free_mat(&masked_input);
     free_mat(&masked_prev);
@@ -21,7 +23,7 @@ matrix_t* process_oddlayer(oddlayer_t layer, matrix_t* from_input, matrix_t* fro
 matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     // Make sure input is a row vector
     if(from_prev_layer->row_size != 1){
-        custom_print("Inputs have to be row vectors\n");
+        custom_print('+', "Inputs have to be row vectors\n");
         exit(1);
     }
     
@@ -43,6 +45,7 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
 
     // Generate minimum vector
     matrix_t* minimum = create_mat(NULL, 1, layer.prev_layer_mask->row_size, 0);
+    custom_print('c', "min\n");
     for (int i = 0; i < layer.prev_layer_mask->row_size; i++)
     {
         int64_t curr_min = INT64_MAX;
@@ -51,16 +54,19 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
         {
             // Skip if not connected
             if(get_elem(layer.prev_layer_mask, i, j) == 0){
+                custom_print('c', "- ");
                 continue;
             }
             // Check abs value against minimum
             int64_t x = abs(get_elem(from_prev_layer, 0, j));
+            custom_print('c', "%x ", x);
             if(curr_min > x){
                 curr_min = x;
             }
 
         }
         put_elem(minimum, 0, i, curr_min);
+        custom_print('c', " -> %x\n", curr_min);
     }
     // Bias addition and flooring of result
     matrix_t* post_processing = mat_sum(minimum, layer.biases);
@@ -73,7 +79,9 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
     // Final matrix
     matrix_t* final = mat_pointwise_mul(signs, post_processing);
     mat_apply_saturation(final);
-    
+    custom_print('c', "evenl\n");
+    display_mat('C', final);
+
     free_mat(&signs);
     free_mat(&minimum);
     free_mat(&post_processing);
@@ -83,13 +91,14 @@ matrix_t* process_evenlayer(evenlayer_t layer, matrix_t* from_prev_layer){
 matrix_t* process_output(outputlayer_t layer, matrix_t* from_input, matrix_t* from_prev_layer){
     // Make sure inputs are row vectors
     if(from_input->row_size != 1 || from_prev_layer->row_size != 1){
-        custom_print("Inputs have to be row vectors\n");
+        custom_print('+', "Inputs have to be row vectors\n");
         exit(1);
     }
     matrix_t* masked_prev = mat_mul(from_prev_layer, layer.output_mask);
     matrix_t* sum = mat_sum(from_input, masked_prev);
     mat_apply_saturation(sum);
-
+    custom_print('c', "outl\n");
+    display_mat('C', sum);
     free_mat(&masked_prev);
     return sum;
 }

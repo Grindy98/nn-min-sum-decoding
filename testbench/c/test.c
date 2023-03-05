@@ -10,7 +10,10 @@
 #include "channel.h"
 #include "import_matrix_wrapper.h"
 
-int custom_print ( const char * fmt, ... ){
+int custom_print (const char flag, const char * fmt, ... ){
+    if(flag != 'c' && flag != '+'){
+        return 0;
+    } 
     int ret;
     va_list args;
     va_start(args, fmt);
@@ -31,27 +34,22 @@ void test_full_layer(){
 
     printf("\nMODEL TEST\n");
 
-    int64_t inp_arr[] = {1,0,0,0,1,1,1};
+    int64_t inp_arr[] = {0,1,1,1,0,0,1};
     inp_mat = create_mat(inp_arr, 1, 7, 1);
 
     llr_mat = cast_to_llr(inp_mat);
     out_mat = process_model(model, llr_mat);
 
-    display_mat(inp_mat);
-    display_mat(llr_mat);
-    display_mat(out_mat);
+    display_mat('=', inp_mat);
+    display_mat('=', llr_mat);
+    display_mat('=', out_mat);
 
     free_mat(&inp_mat);
     free_mat(&llr_mat);
     free_mat(&out_mat);
 }
 
-int main(){
-    // Seed for rng
-    srand(time(0));
-
-    init_adj_mats();
-    
+void misc_tests(){
     matrix_t* inp_mat;
     matrix_t* prev_mat;
     matrix_t* inp_mat_mask;
@@ -80,11 +78,11 @@ int main(){
 
     printf("Channel tests\n");
     matrix_t* cw = generate_random_codeword(generator_mat);
-    display_mat(cw);
+    display_mat('+', cw);
     matrix_t* llr_cw = channel_out_llr(cw, 0.01);
-    display_mat(llr_cw);
+    display_mat('+', llr_cw);
     matrix_t* llr_cw_fixed = fixed_error_out_llr(cw, 1);
-    display_mat(llr_cw_fixed);
+    display_mat('+', llr_cw_fixed);
 
     printf("Layer test\n");
     model_t model;
@@ -100,11 +98,9 @@ int main(){
     matrix_t* in = create_mat(in_arr, 1, 15, 0); 
 
     matrix_t* out = process_model(model, llr_cw);
-    display_mat(out);
+    display_mat('+', out);
     matrix_t* out_llr = cast_from_llr(out);
-    display_mat(out_llr);
-
-    test_full_layer();
+    display_mat('+', out_llr);
 
     free_mat(&in);
     free_mat(&llr_cw);
@@ -117,6 +113,16 @@ int main(){
     free_mat(&inp_mat_mask);
     free_mat(&prev_mat_mask);
     free_mat(&bias_mat);
+}
+
+int main(){
+    // Seed for rng
+    srand(time(0));
+    init_adj_mats();
+
+    //misc_tests();
+    test_full_layer();
+
     free_adj_mats();
     return 0;
 }

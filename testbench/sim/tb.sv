@@ -308,10 +308,6 @@ task static check_cw;
 endtask 
 
 initial begin
-    $monitor("E:    %x", dut.layer.proc_elem_v);
-    $monitor("INP:  %x", dut.all_llrs);
-    $monitor("OUT1: %x", dut.o_layer.llr_out_wire);
-    $monitor("OUT2: %x", dut.o_layer.cw_out);
     before_start();
     fork
         generate_cw();
