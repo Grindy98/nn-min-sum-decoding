@@ -23,7 +23,7 @@ int custom_print (const char flag, const char * fmt, ... ){
 }
 
 void test_full_layer(){
-    matrix_t* inp_mat, *llr_mat, *out_mat;
+    matrix_t* inp_mat, *llr_mat, *out_mat_llr, *out_mat;
     
     model_t model;
     model.biases = biases_mat;
@@ -38,7 +38,8 @@ void test_full_layer(){
     inp_mat = create_mat(inp_arr, 1, 7, 1);
 
     llr_mat = cast_to_llr(inp_mat);
-    out_mat = process_model(model, llr_mat);
+    out_mat_llr = process_model(model, llr_mat);
+    out_mat = cast_from_llr(out_mat_llr);
 
     display_mat('=', inp_mat);
     display_mat('=', llr_mat);
@@ -46,6 +47,7 @@ void test_full_layer(){
 
     free_mat(&inp_mat);
     free_mat(&llr_mat);
+    free_mat(&out_mat_llr);
     free_mat(&out_mat);
 }
 

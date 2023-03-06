@@ -23,14 +23,25 @@ proc comp {} {
 }
 
 proc sim { {time 10us} } {
-	vsim work.tb
-	do wave.do
+	restart -force
 	
 	run $time
+}
+
+proc simc { {time 10us} } {
+	comp
+
+	sim $time
 }
 
 proc simcln { {time 10us} } {
 	ref
 	comp
-	sim $time
+	
+	vsim -l -nolog
+	file delete log.txt
+	
+	vsim work.tb -l log.txt
+	do wave.do
+	run $time
 }

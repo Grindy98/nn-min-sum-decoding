@@ -254,6 +254,7 @@ task static monitor_dut;
 //	put in mailbox (output) 
     automatic bit is_reading = 0;
     automatic logic [dut_i.N_V-1 : 0] read_bits;
+    automatic logic [dut_i.N_V-1 : 0] read_bits_reverse;
     forever begin
         @(negedge clk);
         // Drive first data signal to low unless writing
@@ -269,7 +270,8 @@ task static monitor_dut;
         if(dut_i.data_valid_out == 0) begin
             // End of read
             is_reading = 0;
-            dut_to_chk.put(read_bits);
+            read_bits_reverse = {<<1{read_bits}};
+            dut_to_chk.put(read_bits_reverse);
             continue;
         end
         
@@ -304,6 +306,16 @@ task static check_cw;
         $displayb(cw_noisy);
         $displayb(cw_out_c);
         $displayb(cw_out_dut);
+        if(cw_init != cw_out_c) begin
+            if(cw_noisy == cw_out_c)begin
+                $display("---- MISTAKE UNCORRECTED -----");
+            end else begin
+                $display("----- RANDOM CORRECTION ------");
+            end
+        end
+        if(cw_out_c != cw_out_dut) begin
+            $display("--------- MISMATCH ----------");
+        end
     end 
 endtask 
 

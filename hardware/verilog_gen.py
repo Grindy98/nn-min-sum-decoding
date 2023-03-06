@@ -93,14 +93,12 @@ def build_varn_source(adj_mat_dict, file_name):
     src += '\n\t' + 'always @* begin\n'
     def generate_inp(prev_i, n_tabs):
         return (
-            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{prev_i + 1}' ' - 1]} }, '
-            'all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+            n_tabs*'\t' + '$signed(all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] )'
         )
     
     def generate_prev(prev_i, n_tabs):
         return (
-            n_tabs*'\t' + '{ {EXTENDED_BITS{prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1]} }, '
-            'prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+            n_tabs*'\t' + '$signed(prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] )'
         )
 
     # for every edge (node)
@@ -190,7 +188,7 @@ def build_checkn_source(adj_mat_dict, file_name):
                 src += '\t\t' + f'if (reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] > abs_prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH]) begin\n'
                 src += '\t\t\t' + f'reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH] = abs_prev_proc_elem[(WIDTH * {prev_i + 1}) - 1 -: WIDTH];\n'
                 src += '\t\t' + 'end\n'
-                src += f'\t\t $display("{edge_i} - %x", reg_min[(WIDTH * {edge_i + 1}) - 1 -: WIDTH]);'
+
                 src += '\n\t\t' + f'reg_sign[{edge_i}] = reg_sign[{edge_i}] ^ prev_proc_elem[(WIDTH * {prev_i + 1}) - 1];\n\n'
 
         # min + bias
@@ -303,16 +301,14 @@ def build_outl_source(adj_mat_dict, file_name):
 
     # combinational logic segment
     src += '\n\t' + 'always @* begin\n'
-    def generate_inp(edge_i, n_tabs):
+    def generate_inp(prev_i, n_tabs):
         return (
-            n_tabs*'\t' + '{ {EXTENDED_BITS{all_llrs[WIDTH * ' f'{edge_i + 1}' ' - 1]} }, '
-            'all_llrs[(WIDTH * ' f'{edge_i + 1}' ') - 1 -: WIDTH] }'
+            n_tabs*'\t' + '$signed(all_llrs[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] )'
         )
     
     def generate_prev(prev_i, n_tabs):
         return (
-            n_tabs*'\t' + '{ {EXTENDED_BITS{prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1]} }, '
-            'prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] }'
+            n_tabs*'\t' + '$signed(prev_proc_elem[(WIDTH * ' f'{prev_i + 1}' ') - 1 -: WIDTH] )'
         )
 
     # for every edge (node)

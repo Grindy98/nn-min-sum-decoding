@@ -82,7 +82,7 @@ matrix_t* cast_to_llr(matrix_t* codeword){
     matrix_t* out = duplicate_mat(codeword, 0);
     for (int i = 0; i < out->col_size; i++)
     {
-        int64_t elem = get_elem(out, 0, i);
+        int64_t elem = get_elem(codeword, 0, i);
         elem = elem ? DEFAULT_LLR : (-DEFAULT_LLR);
         put_elem(out, 0, i, elem);
     }
