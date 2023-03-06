@@ -4,7 +4,7 @@
 
 matrix_t* generate_random_codeword(matrix_t* gen_mat){
     if(!gen_mat->is_mod_two){
-        custom_print("Generator matrix has to be mod 2\n");
+        custom_print('+', "Generator matrix has to be mod 2\n");
         exit(1);
     }
     // Generate exactly as many bits as expected by the input
@@ -21,7 +21,7 @@ matrix_t* generate_random_codeword(matrix_t* gen_mat){
 
 matrix_t* apply_channel(matrix_t* codeword, float crossover_p){
     if(!codeword->is_mod_two){
-        custom_print("Codeword has to be mod 2\n");
+        custom_print('+', "Codeword has to be mod 2\n");
         exit(1);
     }
     matrix_t* out = duplicate_mat(codeword, 1);
@@ -51,11 +51,11 @@ void shuffle(int *array, int n, int num_shuffles) {
 
 matrix_t* apply_fixed_error(matrix_t* codeword, int n_errs){
     if(!codeword->is_mod_two){
-        custom_print("Codeword has to be mod 2\n");
+        custom_print('+', "Codeword has to be mod 2\n");
         exit(1);
     }
     if(codeword->col_size < n_errs){
-        custom_print("Number of errors has to be smaller than size of cw\n");
+        custom_print('+', "Number of errors has to be smaller than size of cw\n");
         exit(1);
     }
     int ind_arr[codeword->col_size];
@@ -76,13 +76,13 @@ matrix_t* apply_fixed_error(matrix_t* codeword, int n_errs){
 
 matrix_t* cast_to_llr(matrix_t* codeword){
     if(!codeword->is_mod_two){
-        custom_print("Codeword has to be mod 2\n");
+        custom_print('+', "Codeword has to be mod 2\n");
         exit(1);
     }
     matrix_t* out = duplicate_mat(codeword, 0);
     for (int i = 0; i < out->col_size; i++)
     {
-        int64_t elem = get_elem(out, 0, i);
+        int64_t elem = get_elem(codeword, 0, i);
         elem = elem ? DEFAULT_LLR : (-DEFAULT_LLR);
         put_elem(out, 0, i, elem);
     }

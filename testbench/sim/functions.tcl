@@ -22,15 +22,26 @@ proc comp {} {
 	vlog -sv -f ${GIT_REPO_PATH}/testbench/sim/simfiles_v.f
 }
 
-proc sim {} {
-	vsim work.tb
-	do wave.do
+proc sim { {time 10us} } {
+	restart -force
 	
-	run 10us
+	run $time
 }
 
-proc simcln {} {
+proc simc { {time 10us} } {
+	comp
+
+	sim $time
+}
+
+proc simcln { {time 10us} } {
 	ref
 	comp
-	sim
+	
+	vsim -l -nolog
+	file delete log.txt
+	
+	vsim work.tb -l log.txt
+	do wave.do
+	run $time
 }

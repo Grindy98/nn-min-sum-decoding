@@ -50,7 +50,7 @@ int check_range(matrix_t* mat, int row, int col){
 
 int64_t get_elem(matrix_t* mat, int row, int col){
     if(!check_range(mat, row, col)){
-        custom_print("Invalid range for elem\n");
+        custom_print('+', "Invalid range for elem\n");
         exit(1);
     } 
     return mat->mat[row * mat->col_size + col];
@@ -58,7 +58,7 @@ int64_t get_elem(matrix_t* mat, int row, int col){
 
 void put_elem(matrix_t* mat, int row, int col, int64_t elem){
     if(!check_range(mat, row, col)){
-        custom_print("Invalid range for elem\n");
+        custom_print('+', "Invalid range for elem\n");
         exit(1);
     } 
     mat->mat[row * mat->col_size + col] = mat->is_mod_two ?
@@ -70,8 +70,8 @@ void mat_apply_saturation(matrix_t* A){
     maxsize <<= CINT_SIZE - 1;
     maxsize -= 1;
 
-    int64_t minsize = -1;
-    minsize <<= CINT_SIZE - 1;
+    // Not the actual min because there needs to be symmetry when applying abs()
+    int64_t minsize = -maxsize;
 
     for (int i = 0; i < A->row_size; i++)
     {
@@ -88,7 +88,7 @@ void mat_apply_saturation(matrix_t* A){
 
 matrix_t* mat_extract(matrix_t* A, int row, int col){
     if(!check_range(A, row == -1 ? 0 : row, col == -1 ? 0 : col)){
-        custom_print("Invalid range for row/col extraction\n");
+        custom_print('+', "Invalid range for row/col extraction\n");
         exit(1);
     }
 
@@ -111,7 +111,7 @@ matrix_t* mat_extract(matrix_t* A, int row, int col){
 
 matrix_t* mat_mul(matrix_t* A, matrix_t* B){
     if(A->col_size != B->row_size){
-        custom_print("Matrices must have same inner rank: %d != %d\n",
+        custom_print('+', "Matrices must have same inner rank: %d != %d\n",
             A->col_size, B->row_size);
         exit(1);
     }
@@ -142,13 +142,13 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_sum(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        custom_print("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+        custom_print('+', "Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
             A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
     // Can't add matrices of different mod
     if(A->is_mod_two != B->is_mod_two){
-        custom_print("Matrices must have same type\n");
+        custom_print('+', "Matrices must have same type\n");
         exit(1);
     }
 
@@ -170,7 +170,7 @@ matrix_t* mat_sum(matrix_t* A, matrix_t* B){
 
 matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     if(A->row_size != B->row_size || A->col_size != B->col_size){
-        custom_print("Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
+        custom_print('+', "Matrices must have same ranks: (%d, %d) != (%d, %d)\n",
             A->row_size, A->col_size, B->row_size, B->col_size);
         exit(1);
     }
@@ -189,15 +189,28 @@ matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B){
     
 }
 
-void display_mat(matrix_t* mat){
+void display_mat(char flag, matrix_t* mat){
+    int hexflag = 0;
+    if(flag == 'C'){
+        hexflag = 1;
+        flag = 'c';
+    }
+    if(flag == 'V'){
+        hexflag = 1;
+        flag = 'v';
+    }
+    if(flag == '='){
+        hexflag = 1;
+        flag = '+';
+    }
     for (int i = 0; i < mat->row_size; i++)
     {
-        custom_print(" ");
+        custom_print(flag, " ");
         for (int j = 0; j < mat->col_size; j++)
         {
-            custom_print("%ld ", get_elem(mat, i, j));
+            custom_print(flag, (hexflag ? "%x " : "%ld "), get_elem(mat, i, j));
         }
-        custom_print("\n");
+        custom_print(flag, "\n");
     }
 }
 

@@ -145,8 +145,9 @@ module decoder_top
                             layer_inp_llr_nxt = layer_out_llr;
                             if(segm_counter == N_ITER-1) begin
                                 // End processing
-                                segm_counter_nxt = 0;
                                 state_nxt = DATA_RDY;
+                                segm_counter_nxt = 0;
+                                layer_inp_llr_nxt = 0;
                                 // Save output
                                 cw_out_nxt = cw_result;
                             end

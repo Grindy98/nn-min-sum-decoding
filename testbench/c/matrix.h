@@ -26,7 +26,7 @@ matrix_t* mat_mul(matrix_t* A, matrix_t* B);
 matrix_t* mat_sum(matrix_t* A, matrix_t* B);
 matrix_t* mat_pointwise_mul(matrix_t* A, matrix_t* B);
 
-void display_mat(matrix_t* mat);
+void display_mat(char flag, matrix_t* mat);
 void free_mat(matrix_t** m_ptr);
 
 #endif
