@@ -1,14 +1,17 @@
 `include "ct.vh"
 
 module interm_layer
-    #(  parameter WIDTH = `WIDTH_IN,
-        parameter N_V = `N_V,
-        parameter E = `E,
-        parameter EXTENDED_BITS = `EXTENDED_BITS)
-    ( input [`INT_SIZE-1 : 0] bias_idx,
-      input [WIDTH * N_V - 1 : 0] all_llrs,
-      input [WIDTH * E - 1 : 0] prev_proc_elem,
-      output [WIDTH * E - 1 : 0] proc_elem);
+    #(  
+        parameter WIDTH,
+        parameter N_V,
+        parameter E,
+        parameter EXTENDED_BITS
+    )( 
+        input [`INT_SIZE-1 : 0] bias_idx,
+        input [WIDTH * N_V - 1 : 0] all_llrs,
+        input [WIDTH * E - 1 : 0] prev_proc_elem,
+        output [WIDTH * E - 1 : 0] proc_elem
+    );
     
     wire [WIDTH * E - 1 : 0] proc_elem_v;
     wire [WIDTH * E - 1 : 0] bias;

@@ -33,9 +33,14 @@ void test_full_layer(){
     model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
 
     printf("\nMODEL TEST\n");
+    char inp_str[] = "110001011001011";
+    int len = strlen(inp_str);
+    int64_t inp_arr[len];
+    for(int i = 0; i < len; i++){
+        inp_arr[i] = inp_str[i] == '1' ? 1 : 0;
+    }
 
-    int64_t inp_arr[] = {0,1,1,1,0,0,1};
-    inp_mat = create_mat(inp_arr, 1, 7, 1);
+    inp_mat = create_mat(inp_arr, 1, len, 1);
 
     llr_mat = cast_to_llr(inp_mat);
     out_mat_llr = process_model(model, llr_mat);

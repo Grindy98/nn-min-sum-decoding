@@ -23,9 +23,8 @@ def build_header():
         f'`define RESET_VAL {params_dict["RESET_VAL"]}\n'
         f'`define INT_SIZE {params_dict["INT_SIZE"]}\n'
 
-        f'`define WIDTH_IN {params_dict["WIDTH"]}\n'
-        f'`define WIDTH_OUT {params_dict["WIDTH"]}\n'
-        f'`define N_LLRS {params_dict["N_LLRS"]}\n'
+        f'`define AXI_WIDTH {params_dict["AXI_WIDTH"]}\n'
+        f'`define LLR_WIDTH {params_dict["LLR_WIDTH"]}\n'
         f'`define EXTENDED_BITS {params_dict["EXTENDED_BITS"]}\n'
         f'`define N_V {params_dict["N_V"]}\n'
         f'`define E {params_dict["E"]}\n'
@@ -68,7 +67,7 @@ def build_varn_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', params_dict['WIDTH']),
+    src += add_parameters([('WIDTH', params_dict['LLR_WIDTH']),
                            ('N_V', n_v),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])
@@ -142,7 +141,7 @@ def build_checkn_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', params_dict['WIDTH']),
+    src += add_parameters([('WIDTH', params_dict['LLR_WIDTH']),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])
 
@@ -233,7 +232,7 @@ def build_lut_source(data_dict, file_name):
     # add the ports
     src += (
             '\t( input [`INT_SIZE-1 : 0] bias_idx,\n'
-            f'\t  output reg [{params_dict["WIDTH"] * n_edges}-1 : 0] bias);\n\n'
+            f'\t  output reg [{params_dict["LLR_WIDTH"] * n_edges}-1 : 0] bias);\n\n'
     )
 
     # add always & case block
@@ -243,7 +242,7 @@ def build_lut_source(data_dict, file_name):
     # for every iteration
     for i in range(data_dict['biases'].shape[0]):
         row = data_dict['biases'][i, :]
-        bin_str = ''.join([np.binary_repr(x, width=params_dict["WIDTH"]) for x in row][::-1])
+        bin_str = ''.join([np.binary_repr(x, width=params_dict["LLR_WIDTH"]) for x in row][::-1])
         src += f'\t\t`INT_SIZE\'d{i} : bias = {len(bin_str)}\'b{bin_str};\n'
     
     # add default at the end
@@ -272,7 +271,7 @@ def build_outl_source(adj_mat_dict, file_name):
     src += f'module {file_name}\n'
 
     # add the parameters
-    src += add_parameters([('WIDTH', params_dict["WIDTH"]),
+    src += add_parameters([('WIDTH', params_dict["LLR_WIDTH"]),
                            ('N_V', n_v),
                            ('E', n_edges),
                            ('EXTENDED_BITS', 4)])

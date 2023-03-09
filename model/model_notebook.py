@@ -50,6 +50,9 @@ H_4_7 = swap_form(np.array(const_dict['H_4_7']))
 BCH_16_31 = np.array(tf.constant(
     galois.generator_to_parity_check_matrix(
         galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly))))
+BCH_11_15 = np.array(tf.constant(
+    galois.generator_to_parity_check_matrix(
+        galois.poly_to_generator_matrix(15, galois.BCH(15, 11).generator_poly))))
 BCH_4_7 = np.array(tf.constant(
     galois.generator_to_parity_check_matrix(
         galois.poly_to_generator_matrix(7, galois.BCH(7, 4).generator_poly))))
@@ -153,7 +156,7 @@ def set_bias_arr(model, bias_arr):
 # %%
 def convert_to_int(arr):
     arr = arr * (2 ** DECIMAL_POINT_BIT)
-    arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
+    arr = np.clip(arr, -2**(LLR_WIDTH - 1), 2**(LLR_WIDTH - 1) - 1)
     arr = np.rint(arr)
     return arr.astype('int32')
 
@@ -220,21 +223,25 @@ print(BCH_4_7)
 # Generator matrix
 
 # active_mat = H_32_44
-# active_mat = BCH_16_31
-active_mat = BCH_4_7
+active_mat = BCH_16_31
+# active_mat = BCH_11_15
+# active_mat = BCH_4_7
 
 # active_mat = np.array(tf.constant(
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
+# INT CONVERSION
 DECIMAL_POINT_BIT = 4
-INT_SIZE = 8
+LLR_WIDTH = 8
 
+# HW
+INT_SIZE = 8 # FOR COUNTER
 RESET_VAL = 1
-WIDTH = 8
-N_LLRS = 4
-EXTENDED_BITS = 4
+AXI_WIDTH = 32
+EXTENDED_BITS = 4 # FOR SATURATION
 
+# MODEL METAPARAMS
 BF_ITERS = 5
 
 CROSS_P = 0.01
@@ -280,7 +287,7 @@ gen = datagen_creator(gen_mat)(120, CROSS_P)
 # %%
 history = model.fit(
     x=gen,
-    epochs=10,
+    epochs=15,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
@@ -289,7 +296,7 @@ history = model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=50,
+    steps_per_epoch=100,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -324,6 +331,17 @@ int_model.evaluate(
     steps=100 
 )
 
+# %%
+# Test biases
+int_model, n_v = get_compiled_model(G, BF_ITERS)
+set_bias_arr(int_model, np.zeros(bias_arr_casted.shape))
+
+# %%
+int_model.evaluate(
+    x=datagen_creator(gen_mat)(120, CROSS_P, zero_only=False, test_int=True),
+    steps=100 
+)
+
 # %% [markdown]
 # # EXPORTS
 
@@ -343,13 +361,13 @@ par_dict = {
     'BF_ITERS': BF_ITERS,
     'CROSS_P': CROSS_P,
     'RESET_VAL': RESET_VAL,
-    'WIDTH': WIDTH,
-    'N_LLRS': N_LLRS,
+    'AXI_WIDTH': AXI_WIDTH,
+    'LLR_WIDTH': LLR_WIDTH,
     'EXTENDED_BITS': EXTENDED_BITS,
     'DEFAULT_LLR': DEFAULT_LLR,
 }
 with open('../data/params.json', 'w') as jout:
-    json.dump(par_dict, jout)
+    json.dump(par_dict, jout, indent=2)
 
 # %%
 # Save biases
@@ -369,7 +387,8 @@ int_model.evaluate(
 )
 
 # %%
-x = np.array([int(x) for x in list('0100101')]).reshape(1, 7)
+str_x = '110001011001011'
+x = np.array([int(x) for x in list(str_x)]).reshape(1, len(str_x))
 x = np.where(x, DEFAULT_LLR, -DEFAULT_LLR)
 x = x.astype('float32')
 y = int_model.predict(x)
@@ -430,5 +449,7 @@ out
 
 # %%
 tf.keras.utils.plot_model(int_model, show_shapes=True)
+
+# %%
 
 # %%

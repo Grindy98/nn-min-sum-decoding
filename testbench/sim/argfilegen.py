@@ -1,5 +1,6 @@
 import pathlib
 import argparse
+import itertools
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', type=str, nargs=1)
@@ -20,14 +21,14 @@ def main():
         outf.write('+incdir+' + v.resolve().as_posix() + '\n\n')
 
         # Add all v files
-        outf.writelines('\n'.join([p.resolve().as_posix() for p in v.glob('*.v')]) + '\n\n')
+        outf.writelines('\n'.join([p.resolve().as_posix() for p in itertools.chain(v.glob('*.v'), v.glob('*.sv'))]) + '\n\n')
     print(f'Written {args.v[0]}')
 
     with open(args.c[0], 'w') as outf:
         # Add tb and include lib for header file gen
         outf.write(tb.resolve().as_posix() + '\n')
         outf.write('+incdir+' + v.resolve().as_posix() + '\n\n')
-        
+
         # Add all c files minus the test file
         outf.writelines('\n'.join([p.resolve().as_posix() for p in c.glob('*.c') if p.name != 'test.c']))
     print(f'Written {args.c[0]}')

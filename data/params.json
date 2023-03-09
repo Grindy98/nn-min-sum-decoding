@@ -1,1 +1,13 @@
-{"N_V": 7, "E": 12, "DECIMAL_POINT_BIT": 4, "INT_SIZE": 8, "BF_ITERS": 5, "CROSS_P": 0.01, "RESET_VAL": 1, "WIDTH": 8, "N_LLRS": 4, "EXTENDED_BITS": 4, "DEFAULT_LLR": 74}
+{
+  "N_V": 15,
+  "E": 32,
+  "DECIMAL_POINT_BIT": 4,
+  "INT_SIZE": 8,
+  "BF_ITERS": 5,
+  "CROSS_P": 0.01,
+  "RESET_VAL": 1,
+  "AXI_WIDTH": 32,
+  "LLR_WIDTH": 8,
+  "EXTENDED_BITS": 4,
+  "DEFAULT_LLR": 74
+}
