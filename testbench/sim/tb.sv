@@ -197,7 +197,7 @@ task static drive_dut;
             assert(llr_index < N_V);
             buffer = {buffer, w.cw[llr_index]};
             llr_index += 1;
-            buf_size += tb_to_dut.WIDTH;
+            buf_size += LLR_WIDTH;
         end
 
         // Drive the bus and other signals
@@ -216,11 +216,11 @@ task static monitor_dut;
         // Check if databus valid
         if(dut_to_tb.tvalid) begin
             // Read the input
-            read_bits <= {read_bits, dut_to_tb.tdata};
+            read_bits = {read_bits, dut_to_tb.tdata};
             if(dut_to_tb.tlast) begin
                 // Finished
                 dut_to_chk.put(read_bits);
-                read_bits <= 0;
+                read_bits = 0;
             end
         end
         
