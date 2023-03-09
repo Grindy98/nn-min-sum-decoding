@@ -1,9 +1,12 @@
 `include "ct.vh"
 
 module llr_to_out
-	#( parameter WIDTH = 8)
-	( input [WIDTH - 1 : 0] in,
-	  output out);
+	#( 
+		parameter WIDTH
+	)(
+		input [WIDTH - 1 : 0] in,
+	  	output out
+	);
 
 	localparam MSB = WIDTH - 1;
 

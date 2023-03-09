@@ -153,7 +153,7 @@ def set_bias_arr(model, bias_arr):
 # %%
 def convert_to_int(arr):
     arr = arr * (2 ** DECIMAL_POINT_BIT)
-    arr = np.clip(arr, -2**(INT_SIZE - 1), 2**(INT_SIZE - 1) - 1)
+    arr = np.clip(arr, -2**(LLR_WIDTH - 1), 2**(LLR_WIDTH - 1) - 1)
     arr = np.rint(arr)
     return arr.astype('int32')
 
@@ -227,14 +227,17 @@ active_mat = BCH_4_7
 #     galois.generator_to_parity_check_matrix(
 #         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
 
+# INT CONVERSION
 DECIMAL_POINT_BIT = 4
-INT_SIZE = 8
+LLR_WIDTH = 8
 
+# HW
+INT_SIZE = 8 # FOR COUNTER
 RESET_VAL = 1
-WIDTH = 8
-N_LLRS = 4
-EXTENDED_BITS = 4
+AXI_WIDTH = 8
+EXTENDED_BITS = 4 # FOR SATURATION
 
+# MODEL METAPARAMS
 BF_ITERS = 5
 
 CROSS_P = 0.01
@@ -343,13 +346,13 @@ par_dict = {
     'BF_ITERS': BF_ITERS,
     'CROSS_P': CROSS_P,
     'RESET_VAL': RESET_VAL,
-    'WIDTH': WIDTH,
-    'N_LLRS': N_LLRS,
+    'AXI_WIDTH': AXI_WIDTH,
+    'LLR_WIDTH': LLR_WIDTH,
     'EXTENDED_BITS': EXTENDED_BITS,
     'DEFAULT_LLR': DEFAULT_LLR,
 }
 with open('../data/params.json', 'w') as jout:
-    json.dump(par_dict, jout)
+    json.dump(par_dict, jout, indent=2)
 
 # %%
 # Save biases
@@ -430,5 +433,7 @@ out
 
 # %%
 tf.keras.utils.plot_model(int_model, show_shapes=True)
+
+# %%
 
 # %%

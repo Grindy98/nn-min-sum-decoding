@@ -1,10 +1,13 @@
 `include "ct.vh"
 
 module saturate
-	#( parameter WIDTH = 8,
-	   parameter EXTENDED_BITS = 4)
-	( input [WIDTH + EXTENDED_BITS - 1 : 0] in,
-	  output reg [WIDTH - 1 : 0] out);
+	#( 
+        parameter WIDTH,
+	    parameter EXTENDED_BITS
+    )( 
+        input [WIDTH + EXTENDED_BITS - 1 : 0] in,
+	    output reg [WIDTH - 1 : 0] out
+    );
 
 	localparam MSB = WIDTH + EXTENDED_BITS - 1;
     localparam MAXVAL = ~(1 << (WIDTH - 1));
