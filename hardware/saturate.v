@@ -2,8 +2,8 @@
 
 module saturate
 	#( 
-        parameter WIDTH,
-	    parameter EXTENDED_BITS
+        parameter WIDTH = `LLR_WIDTH,
+	    parameter EXTENDED_BITS = `EXTENDED_BITS
     )( 
         input [WIDTH + EXTENDED_BITS - 1 : 0] in,
 	    output reg [WIDTH - 1 : 0] out

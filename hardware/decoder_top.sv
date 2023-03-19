@@ -145,7 +145,7 @@ module decoder_top
                     to_env.tdata = cw_out[OUT_ARR_SIZE-1 -: WRITE_PAD];
                 end else begin
                     // Normal write
-                    to_env.tdata = cw_out[OUT_ARR_SIZE-1 -: to_env.WIDTH];
+                    to_env.tdata = cw_out[OUT_ARR_SIZE-1 -: (to_env.WIDTH < OUT_ARR_SIZE ? to_env.WIDTH : OUT_ARR_SIZE)];
                 end
                 // Check if ready
                 if(to_env.tready) begin

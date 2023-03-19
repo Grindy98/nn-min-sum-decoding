@@ -2,10 +2,10 @@
 
 module interm_layer
     #(  
-        parameter WIDTH,
-        parameter N_V,
-        parameter E,
-        parameter EXTENDED_BITS
+        parameter WIDTH = `LLR_WIDTH,
+        parameter N_V = `N_V,
+        parameter E = `E,
+        parameter EXTENDED_BITS = `EXTENDED_BITS
     )( 
         input [`INT_SIZE-1 : 0] bias_idx,
         input [WIDTH * N_V - 1 : 0] all_llrs,

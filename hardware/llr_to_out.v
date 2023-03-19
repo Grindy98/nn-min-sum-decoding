@@ -2,7 +2,7 @@
 
 module llr_to_out
 	#( 
-		parameter WIDTH
+		parameter WIDTH = `LLR_WIDTH
 	)(
 		input [WIDTH - 1 : 0] in,
 	  	output out
