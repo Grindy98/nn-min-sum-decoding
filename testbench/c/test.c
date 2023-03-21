@@ -10,8 +10,11 @@
 #include "channel.h"
 #include "import_matrix_wrapper.h"
 
+extern const double CROSS_P;
+char def_print_type = 'c';
+
 int custom_print (const char flag, const char * fmt, ... ){
-    if(flag != 'c' && flag != '+'){
+    if(flag != def_print_type && flag != '+'){
         return 0;
     } 
     int ret;
@@ -22,7 +25,7 @@ int custom_print (const char flag, const char * fmt, ... ){
     return ret;
 }
 
-void test_full_layer(){
+void test_full_layer(char inp_str[]){
     matrix_t* inp_mat, *llr_mat, *out_mat_llr, *out_mat;
     
     model_t model;
@@ -33,7 +36,6 @@ void test_full_layer(){
     model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
 
     printf("\nMODEL TEST\n");
-    char inp_str[] = "110001011001011";
     int len = strlen(inp_str);
     int64_t inp_arr[len];
     for(int i = 0; i < len; i++){
@@ -122,13 +124,74 @@ void misc_tests(){
     free_mat(&bias_mat);
 }
 
-int main(){
+void get_stats(int n){
+    def_print_type = '+';
+
+    model_t model;
+    model.biases = biases_mat;
+    model.input_mask = odd_inp_layer_mask_mat;
+    model.output_mask = output_mask_mat;
+    model.prev_even_layer_mask = even_prev_layer_mask_mat;
+    model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
+    
+    int total_bits = 0;
+    int bit_errors = 0;
+    int frame_errors = 0;
+    for (int i = 0; i < n; i++){
+        matrix_t* cw = generate_random_codeword(generator_mat);
+        matrix_t* cw_noisy = channel_out_llr(cw, CROSS_P);
+        matrix_t* res_llr = process_model(model, cw_noisy);
+        matrix_t* res = cast_from_llr(res_llr);
+
+        int frame_flag = 0;
+        for(int j = 0; j < res->col_size; j++){
+            // Iterate over all bits, if one is wrong then frame has error
+            if(get_elem(res, 0, j) != get_elem(cw, 0, j)){
+                frame_flag = 1;
+                bit_errors++;
+            }
+        }
+        if(frame_flag){
+            frame_errors++;
+        }
+        total_bits += res->col_size;
+
+        // display_mat('+', res);
+        // display_mat('+', cw_noisy);
+        // display_mat('+', cw);
+
+        free_mat(&res);
+        free_mat(&res_llr);
+        free_mat(&cw_noisy);
+        free_mat(&cw);
+    }
+    double ber = bit_errors;
+    double fer = frame_errors;
+    ber /= total_bits;
+    fer /= n;
+
+    printf("BER: %e\n", ber);
+    printf("FER: %e\n", fer);
+    
+}
+
+int main(int argc, char* argv[]){
     // Seed for rng
     srand(time(0));
     init_adj_mats();
-
-    //misc_tests();
-    test_full_layer();
+    if(argc == 1){
+        misc_tests();
+    } else if(argc == 3 && strcmp(argv[1], "-d") == 0){
+        // test_full_layer("110001011001011");
+        test_full_layer(argv[2]);
+    } else if(argc == 3 && strcmp(argv[1], "-m") == 0){
+        int n = 0;
+        sscanf(argv[2], "%d", &n);
+        get_stats(n);
+    }else{
+        printf("Invalid arguments!\n");
+        return 1;
+    }
 
     free_adj_mats();
     return 0;
