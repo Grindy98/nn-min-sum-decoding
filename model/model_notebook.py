@@ -211,7 +211,7 @@ np.save('../data/biases.npy', bias_arr_casted)
 bias_arr_casted = np.load('../data/biases.npy')
 set_bias_arr(int_model, bias_arr_casted.astype('float64'))
 int_model.evaluate(
-    x=datagen_creator(gen_mat)(120, params['CROSS_P'], zero_only=False, test_int=True),
+    x=datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR'], zero_only=False),
     steps=100 
 )
 
