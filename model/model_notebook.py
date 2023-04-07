@@ -64,17 +64,8 @@ print(gen_mat_dict['H_4_7'])
 # %%
 # Generator matrix
 
-# active_mat = H_32_44
-active_mat = gen_mat_dict['BCH_16_31']
-# active_mat = BCH_11_15
-# active_mat = BCH_4_7
-
-# active_mat = np.array(tf.constant(
-#     galois.generator_to_parity_check_matrix(
-#         galois.poly_to_generator_matrix(15, galois.BCH(15, 7).generator_poly))))
-
-
 params = get_params()
+active_mat = gen_mat_dict[params['MODEL_KEY']]
 params
 
 # %% [markdown]
@@ -119,7 +110,7 @@ history = model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=100,
+    steps_per_epoch=200,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -133,20 +124,6 @@ model.evaluate(
     x=datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], zero_only=False),
     steps=100 
 )
-
-# %%
-x_plt = [x[0] for x in stat_list]
-y_ber_plt = [x[1].history['BER'][-1] for x in stat_list]
-y_fer_plt = [x[1].history['FER'][-1] for x in stat_list]
-
-plt.plot(x_plt, y_ber_plt)
-plt.plot(x_plt, y_fer_plt)
-ax = plt.gca()
-ax.set_xscale('log')
-ax.set_yscale('log')
-ax.invert_xaxis()
-plt.show()
-
 
 # %% [markdown]
 # ## Bias Extraction and Integer Cast Evaluation

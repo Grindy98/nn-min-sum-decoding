@@ -21,7 +21,7 @@ $(BIN) : $(BUILD_DIR)/$(BIN)
 # Actual target of the binary - depends on all .o files.
 $(BUILD_DIR)/$(BIN) : $(OBJ)
 	mkdir -p $(@D)
-	$(CXX) $(CXX_FLAGS) $^ -o $@
+	$(CXX) $(CXX_FLAGS) $^ -o $@ -lm
 
 # Include all .d files
 -include $(DEP)
@@ -34,9 +34,13 @@ $(BUILD_DIR)/%.o : %.c
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
 
 # Specific build targets
-import_matrix_wrapper.c : ../../data/adj_matrices.npz ../../data/biases.npy ../../data/generator.npy codegen.py
+import_matrix_wrapper.c : ../../data/adj_matrices.npz ../../data/biases.npy ../../data/generator.npy ../../data/params.json codegen.py
 	python3 codegen.py ../../data/adj_matrices.npz ../../data/biases.npy ../../data/generator.npy -p ../../data/params.json -o import_matrix_wrapper
 
 .PHONY : clean
 clean :
 	-rm -f $(BUILD_DIR)/$(BIN) $(OBJ) $(DEP)
+
+.PHONY : runt
+runt :
+	./$(BUILD_DIR)/$(BIN) -m ../../data/stats

@@ -3,6 +3,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
+#include <pthread.h>
+#include <errno.h>
 
 #include "print.h"
 #include "matrix.h"
@@ -11,6 +14,7 @@
 #include "import_matrix_wrapper.h"
 
 extern const double CROSS_P;
+extern const char MODEL_KEY[];
 char def_print_type = 'c';
 
 int custom_print (const char flag, const char * fmt, ... ){
@@ -123,9 +127,18 @@ void misc_tests(){
     free_mat(&prev_mat_mask);
     free_mat(&bias_mat);
 }
-
-void get_stats(int n){
-    def_print_type = '+';
+struct thread_inp{
+    int min_iters;
+    int min_errors;
+    double p;
+    int t_bits;
+    int t_frames;
+    int e_bits;
+    int e_frames;
+};
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+void * threaded_prob(void* inputs){
+    struct thread_inp* inp = (struct thread_inp*) inputs;
 
     model_t model;
     model.biases = biases_mat;
@@ -134,12 +147,70 @@ void get_stats(int n){
     model.prev_even_layer_mask = even_prev_layer_mask_mat;
     model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
     
+    pthread_mutex_lock(&mutex);
+    double p = inp->p;
+    int min_iters = inp->min_iters;
+    int min_errors = inp->min_errors;
+    pthread_mutex_unlock(&mutex);
+
+    while (1){
+        pthread_mutex_lock(&mutex);
+        if(!(inp->e_bits < min_errors || inp->t_frames < min_iters)){
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+        pthread_mutex_unlock(&mutex);
+
+        matrix_t* cw = generate_random_codeword(generator_mat);
+        matrix_t* cw_noisy = channel_out_llr(cw, p);
+        matrix_t* res_llr = process_model(model, cw_noisy);
+        matrix_t* res = cast_from_llr(res_llr);
+
+        int bit_errors = 0;
+        for(int j = 0; j < res->col_size; j++){
+            // Iterate over all bits, if one is wrong then frame has error
+            if(get_elem(res, 0, j) != get_elem(cw, 0, j)){
+                bit_errors++;
+            }
+        }
+        pthread_mutex_lock(&mutex);
+        if(bit_errors > 0){
+            inp->e_frames++;
+        }
+        inp->e_bits += bit_errors;
+        inp->t_bits += res->col_size;
+        inp->t_frames++;
+        if(inp->t_frames % 10000 == 0){
+            printf("Frames - errs: %8d - %2d\n", inp->t_frames, inp->e_bits);
+        }
+        pthread_mutex_unlock(&mutex);
+
+        free_mat(&res);
+        free_mat(&res_llr);
+        free_mat(&cw_noisy);
+        free_mat(&cw);
+    }
+    return NULL;
+}
+
+void get_stats_prob(int n_errors, int min_iters, double p, double stats[2]){
+    model_t model;
+    model.biases = biases_mat;
+    model.input_mask = odd_inp_layer_mask_mat;
+    model.output_mask = output_mask_mat;
+    model.prev_even_layer_mask = even_prev_layer_mask_mat;
+    model.prev_odd_layer_mask = odd_prev_layer_mask_mat;
+    
     int total_bits = 0;
+    int total_frames = 0;
     int bit_errors = 0;
     int frame_errors = 0;
-    for (int i = 0; i < n; i++){
+    while (bit_errors < n_errors || total_frames < min_iters){
+        if(total_frames % 10000 == 0 && total_frames != 0){
+            printf("Frames processed: %7d\n", total_frames);
+        }
         matrix_t* cw = generate_random_codeword(generator_mat);
-        matrix_t* cw_noisy = channel_out_llr(cw, CROSS_P);
+        matrix_t* cw_noisy = channel_out_llr(cw, p);
         matrix_t* res_llr = process_model(model, cw_noisy);
         matrix_t* res = cast_from_llr(res_llr);
 
@@ -155,6 +226,7 @@ void get_stats(int n){
             frame_errors++;
         }
         total_bits += res->col_size;
+        total_frames++;
 
         // display_mat('+', res);
         // display_mat('+', cw_noisy);
@@ -168,11 +240,95 @@ void get_stats(int n){
     double ber = bit_errors;
     double fer = frame_errors;
     ber /= total_bits;
-    fer /= n;
+    fer /= total_frames;
 
-    printf("BER: %e\n", ber);
-    printf("FER: %e\n", fer);
+    // printf("BER: %e\n", ber);
+    // printf("FER: %e\n", fer);
     
+    stats[0] = ber;
+    stats[1] = fer;
+}
+
+void export_model_stats(){
+    def_print_type = '+';
+
+    double upper = 0.1, lower = 5e-5;
+    int n = 8;
+    double factor = pow(lower / upper, 1.0 / (n - 1));
+
+    for(int i = 0; i < n; i++){
+        double p = upper * pow(factor, (double)i);
+        double stats[2];
+        get_stats_prob(11, 101, p, stats);
+
+        printf("For %.2e: BER: %e, ", p, stats[0]);
+        printf("FER: %e\n", stats[1]);
+    }
+
+}
+
+void export_model_stats_threaded(const char* dir_path){
+    def_print_type = '+';
+
+    double upper = 0.1, lower = 5e-5;
+    int n = 8;
+    int n_thr = 4;
+    double factor = pow(lower / upper, 1.0 / (n - 1));
+
+
+    const int MAX_BUF = 10000;
+    char* whole_text = malloc(sizeof(char) * MAX_BUF);
+    if(whole_text == NULL){
+        printf("Error allocating space");
+        exit(1);
+    }
+    int length = 0;
+    length += snprintf(whole_text+length, MAX_BUF-length, "[\n");
+
+    for(int i = 0; i < n; i++){
+        double p = upper * pow(factor, (double)i);
+        struct thread_inp inp;
+        inp.e_bits = 0;
+        inp.e_frames = 0;
+        inp.t_bits = 0;
+        inp.t_frames = 0;
+        inp.p = p;
+        inp.min_errors = 11;
+        inp.min_iters = 101;
+
+        pthread_t thr_arr[n_thr];
+        for(int i_thr = 0; i_thr < n_thr; i_thr++){
+            pthread_create(&thr_arr[i_thr], NULL, threaded_prob, &inp);
+        }
+        for(int i_thr = 0; i_thr < n_thr; i_thr++){
+            pthread_join(thr_arr[i_thr], NULL);
+        }
+        double ber = ((double)inp.e_bits) / inp.t_bits;
+        double fer = ((double)inp.e_frames) / inp.t_frames;
+
+        printf("For %.2e: BER: %e, ", p, ber);
+        printf("FER: %e\n", fer);
+
+        // Write in JSON list format
+        char comma = (i == n - 1 ? ' ' : ','); 
+        length += snprintf(whole_text+length, MAX_BUF-length, 
+            "\t{\"p\":%.10lf, \"ber\":%.10lf, \"fer\":%.10lf}%c\n", p, ber, fer, comma);
+    }
+    
+    length += snprintf(whole_text+length, MAX_BUF-length, "]\n");
+
+    // Open file in data dir and dump the data
+    char line_buf[100];
+    snprintf(line_buf, 100, "%s/stats_%s.json", dir_path, MODEL_KEY);
+    FILE* fout = fopen(line_buf, "w");
+
+    if(fout == NULL){
+        printf("File open error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    fprintf(fout, "%s", whole_text);
+    fclose(fout);
 }
 
 int main(int argc, char* argv[]){
@@ -184,10 +340,12 @@ int main(int argc, char* argv[]){
     } else if(argc == 3 && strcmp(argv[1], "-d") == 0){
         // test_full_layer("110001011001011");
         test_full_layer(argv[2]);
-    } else if(argc == 3 && strcmp(argv[1], "-m") == 0){
-        int n = 0;
-        sscanf(argv[2], "%d", &n);
-        get_stats(n);
+    } else if(argc >= 2 && strcmp(argv[1], "-m") == 0){
+        if(argc == 2){
+            export_model_stats();
+        }else{
+            export_model_stats_threaded(argv[2]);
+        }
     }else{
         printf("Invalid arguments!\n");
         return 1;
