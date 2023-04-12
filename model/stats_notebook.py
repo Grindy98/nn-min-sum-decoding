@@ -24,11 +24,15 @@
 # %%
 import json
 import yaml
+import pickle
 import tensorflow as tf
 import scipy.io
 from scipy.special import erfc
 from scipy.stats import binom
 import itertools
+import pathlib
+import re
+import traceback
 
 import numpy as np
 import galois
@@ -127,6 +131,10 @@ binom.sf(4,40,0.01)
 # ## Model Stats
 
 # %%
+
+# %%
+
+# %%
 def model_stats(eval_fun):
     def wrapper(probs, gen_mat, model_dict, step_factor=20):
         stat_list = []
@@ -144,8 +152,6 @@ def model_stats(eval_fun):
         return [x[0] for x in stat_list], dict_return
     return wrapper
 
-
-# %%
 @model_stats
 def BCH_model(p, steps, model_dict, gen_mat):
     ret = {}
@@ -156,17 +162,30 @@ def BCH_model(p, steps, model_dict, gen_mat):
         ret[k] = m.evaluate(gen_list[i], steps=steps, return_dict=True)
     return ret
 
-#BCH_model(compute_ber(X_sim))
 
+def multiple_stats(probs, key_list, try_cache = True, update_cache = True):
+    key_list = [x if isinstance(x, tuple) else (x, 20) for x in key_list ]
+    key_list = key_list_orig = set(key_list)
+    PATH = '../data/stats/pystats.pkl'
+    def extract_ret(ret):
+        return {k: v for k, v in ret.items() if k in key_list_orig}
+    
+    ret_dict = {}
+    if try_cache:
+        try:
+            with open(PATH, 'rb') as infile:
+                data = pickle.load(infile)
+            ret_dict.update(data)
+            key_list -= data.keys()
+            if not key_list:
+                # All already cached
+                return extract_ret(ret_dict)
+            print(f'Loaded from cache: {list(data.keys())}')
+        except Exception as e:
+            print(f'Cannot load cache: {e}')
+            print(traceback.format_exc())
 
-# %%
-def multiple_stats(probs, key_list):
-    ret_tup = None
-    for k in key_list:
-        if isinstance(k, tuple):
-            k, step_weight = k[0], k[1] 
-        else:
-            k, step_weight = k, 20
+    for k, step_weight in key_list:
         active_mat = gen_mat_dict[k]
         G, _ = get_tanner_graph(active_mat)
         gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
@@ -178,92 +197,48 @@ def multiple_stats(probs, key_list):
             callbacks=callbacks,
             steps_per_epoch=100,
         )
-        stat_tup = BCH_model(probs, gen_mat, {f'{k}_m': model, f'{k}_i': get_ident_model(n_v)}, step_weight)
-        if not ret_tup:
-            ret_tup = stat_tup
-            continue
-        assert(ret_tup[0] == stat_tup[0])
-        ret_tup[1].update(stat_tup[1])
-    return ret_tup
+        print(f'Get stats for {k}')
+        stat_tup = BCH_model(probs, gen_mat, {'m': model, 'i': get_ident_model(n_v)}, step_weight)
+        stat_dict = stat_tup[1]
+        stat_dict['p'] = stat_tup[0]
+        ret_dict.update({(k, step_weight): stat_dict})
+        # Also dump updated data in case of crash
+        if update_cache:
+            with open(PATH, 'wb') as outfile:
+                pickle.dump(ret_dict, outfile)
+    return extract_ret(ret_dict)
+
+
+def get_c_stats(): 
+    ret_dict = {}
+    for p in pathlib.Path('../data/stats/').iterdir():
+        if match := re.match(r'stats_(.*)\.json', p.name):
+            key = match.group(1)
+            with p.open('rb') as infile:
+                c_stats = json.load(infile)
+            ret_dict[(f'{key}_C', -1)] = {'m': [{'BER': x['ber'], 'FER': x['fer']} for x in c_stats],
+                                          'p': [x['p'] for x in c_stats]}
+    return ret_dict
+
+def extract(stats, key, what, ident=False):
+    key_lst = [x for x in stats.keys() if x[0] == key]
+    key_lst.sort(key=lambda x: x[1], reverse=True)
+    key = key_lst[0]
+    x_lst = stats[key]['p']
+    y_lst = [x[what] for x in stats[key]['i' if ident else 'm']]
+    return x_lst, y_lst
 
 
 # %%
-multiple_stats(np.geomspace(1e-1, 1e-3, 5), ['BCH_16_31']*2)
-
-# %%
-import itertools
-
-x, y = itertools.tee(datagen_creator(galois.GF2(np.eye(4, dtype=int)))(1, 0.1, 1, zero_only=False), 2)
-print(next(x))
-print(next(x))
-print(next(x))
-print(next(x))
-print(next(y))
-print(next(y))
-
-# %%
-p = stat_list[4][0]
-int(convert_to_int(-prob_to_llr(p).numpy()))
-stat_list[4][1]
-
-# %%
-[(x[1]['BER'], y) for x, y in zip(stat_list, X_sim)]
-
-# %%
-fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
-ax.semilogy(X_theory, compute_ber(X_theory),marker='',linestyle='-',label='BPSK Theory')
-ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list],marker='X',linestyle='-', color='b', label='BPSK Theory')
-ax.set_xlabel('$E_b/N_0(dB)$')
-ax.set_ylabel('BER ($P_b$)')
-ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
-ax.set_xlim(-5,13)
-ax.grid(True)
-ax.legend()
-
-plt.show()
-
-
-# %%
-fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
-ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
-ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
-ax.set_xlabel('$E_b/N_0(dB)$')
-ax.set_ylabel('BER ($P_b$)')
-ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
-ax.set_xlim(-5,13)
-ax.grid(True)
-ax.legend()
-
-plt.show()
-
-# %%
-stat_list = BCH_model(np.geomspace(1e-1, 1e-3, 5), {'bch': model, 'ident': model_id})
-
-# %%
-stat_list
-
-
-# %%
-def extract(stats, key, what):
-    return stats[0], [x[what] for x in stats[1][key]]
-
-fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
-#ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
-#ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
-ax.loglog(*extract(stat_list, 'bch', 'BER'), '-r', label='Decoder')
-ax.loglog(*extract(stat_list, 'ident', 'BER'), '--b', label='Identity')
-ax.set_xlabel('$E_b/N_0(dB)$')
-ax.set_ylabel('BER ($P_b$)')
-ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
-ax.grid(True)
-ax.legend()
-ax.invert_xaxis()
-
-
-plt.show()
 
 # %%
 all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', 'BCH_11_15', 'BCH_16_31'])
+all_stats
+
+# %%
+with open('../data/stats/pystats.pkl', 'rb') as infile:
+    z = pickle.load(infile)
+    print(list(z[1].keys()))
 
 # %%
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
@@ -273,10 +248,10 @@ fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 # ax.loglog(*extract(all_stats, 'BCH_16_31_i', 'BER'), '--r', label='Identity')
 # ax.loglog(*extract(all_stats, 'BCH_11_15_m', 'BER'), '-k', label='Decoder')
 # ax.loglog(*extract(all_stats, 'BCH_11_15_i', 'BER'), '--k', label='Identity')
-ax.loglog(*extract(all_stats, 'H_32_44_m', 'BER'), '-b', label='Decoder')
-ax.loglog(*extract(all_stats, 'H_32_44_i', 'BER'), '--b', label='Identity')
-ax.loglog(*extract(all_stats, 'H_4_7_m', 'BER'), '-g', label='Decoder')
-ax.loglog(*extract(all_stats, 'H_4_7_i', 'BER'), '--g', label='Identity')
+ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='Decoder')
+ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='Identity')
+ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='Decoder')
+ax.loglog(*extract(all_stats, 'H_4_7', 'BER', ident=True), '--g', label='Identity')
 ax.set_xlabel('$E_b/N_0(dB)$')
 ax.set_ylabel('BER ($P_b$)')
 ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
@@ -288,4 +263,21 @@ ax.invert_xaxis()
 all_stats_2 = multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('H_4_7', 100), ('BCH_11_15', 40)] )
 
 # %%
- 
+c_stats = get_c_stats()
+c_stats
+
+
+# %%
+merge_stats = all_stats | c_stats
+fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER', ident=True), '--b', label='Identity')
+ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER'), '-b', label='Decoder')
+ax.loglog(*extract(merge_stats, 'BCH_16_31_C', 'BER'), '-g', label='Decoder C')
+ax.set_xlabel('$E_b/N_0(dB)$')
+ax.set_ylabel('BER ($P_b$)')
+ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
+ax.grid(True)
+ax.legend()
+ax.invert_xaxis()
+
+# %%
