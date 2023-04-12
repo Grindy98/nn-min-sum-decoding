@@ -96,7 +96,7 @@ def get_gen_mat_dict():
     }
 
 def get_params():
-    with open('model_params.yml', 'r') as in_yaml:
+    with open('../model_params.yml', 'r') as in_yaml:
         params = yaml.safe_load(in_yaml)
     params['DEFAULT_LLR_F'] = -prob_to_llr(params['CROSS_P']).numpy().tolist()
     params['DEFAULT_LLR'] = convert_to_int(params['DEFAULT_LLR_F'], params['DECIMAL_POINT_BIT'], params['LLR_WIDTH']).tolist()
