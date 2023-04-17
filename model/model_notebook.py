@@ -191,10 +191,10 @@ def test_int_models():
         no_errs_4, xor_4, pred_4 = model_predict(zero_model, (x, y), params, is_int=True)
         masked = np.transpose(np.stack([x, y, xor_1, xor_3, pred_1, pred_3]), (1, 0, 2))[no_errs_1 > no_errs_3]
         for tup in masked: 
-            print(f'float err \n\t{tup[0]}\n\t{tup[1]} -> \n({np.sum(tup[2])}){tup[4]};\n({np.sum(tup[4])}){tup[5]}')
+            print(f'float err \n\t{tup[0]}\n\t{tup[1]} -> \n({np.sum(tup[2])}){tup[4]};\n({np.sum(tup[3])}){tup[5]}')
         masked = np.transpose(np.stack([x, y, xor_2, xor_4, pred_2, pred_4]), (1, 0, 2))[no_errs_2 > no_errs_4]
         for tup in masked: 
-            print(f'int err \n\t{tup[0]}\n\t -> \n({np.sum(tup[2])}){tup[4]};\n({np.sum(tup[4])}){tup[5]}')
+            print(f'int err \n\t{tup[0]}\n\t{tup[1]} -> \n({np.sum(tup[2])}){tup[4]};\n({np.sum(tup[3])}){tup[5]}')
 #             print(f'float err {x} - {y} -> {pred_1}, {pred_3}')
 #         if no_errs_2 > no_errs_4:
 #             print(f'int err {x} - {y} -> {pred_2}, {pred_4}')
