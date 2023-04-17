@@ -40,7 +40,7 @@ from matplotlib import pyplot as plt
 
 # %%
 from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params, set_bias_arr, \
-    generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, convert_to_int, int_gen_mapper
+    generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, convert_to_int
 
 from model import get_compiled_model, datagen_creator
 
@@ -95,7 +95,7 @@ gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], 
 # %%
 history = model.fit(
     x=gen,
-    epochs=15,
+    epochs=10,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
@@ -125,7 +125,7 @@ model.evaluate(
 # %%
 # Extract biases
 bias_arr = get_bias_arr(model)
-bias_arr_casted = convert_to_int(bias_arr)
+bias_arr_casted = convert_to_int(bias_arr, params)
 bias_arr_casted.dtype
 
 # %%
@@ -141,11 +141,11 @@ int_model.evaluate(
 
 # %%
 # Test biases
-int_model, n_v = get_compiled_model(G, params['BF_ITERS'])
+model_no_w, n_v = get_compiled_model(G, params['BF_ITERS'])
 set_bias_arr(int_model, np.zeros(bias_arr_casted.shape))
 
 # %%
-int_model.evaluate(
+model_no_w.evaluate(
     x=datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR'], zero_only=False),
     steps=100 
 )
