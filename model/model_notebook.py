@@ -96,7 +96,7 @@ gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], 
 # %%
 history = model.fit(
     x=gen,
-    epochs=15,
+    epochs=10,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
