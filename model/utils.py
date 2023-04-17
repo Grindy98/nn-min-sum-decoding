@@ -58,9 +58,9 @@ def set_bias_arr(model, bias_arr):
         l = model.get_layer(f'hl_{(i + 1) * 2}')
         l.bias.assign(b)
 
-def convert_to_int(arr, decimal_point_bit, llr_width):
-    arr = arr * (2 ** decimal_point_bit)
-    arr = np.clip(arr, -2**(llr_width - 1) + 1, 2**(llr_width - 1) - 1)
+def convert_to_int(arr, params):
+    arr = arr * (2 ** params['DECIMAL_POINT_BIT'])
+    arr = np.clip(arr, -2**(params['LLR_WIDTH'] - 1) + 1, 2**(params['LLR_WIDTH'] - 1) - 1)
     arr = np.rint(arr)
     return arr.astype('int32')
 
@@ -95,9 +95,11 @@ def get_gen_mat_dict():
             galois.poly_to_generator_matrix(7, galois.BCH(7, 4).generator_poly)))),
     }
 
-def get_params():
+def get_params(override={}):
     with open('../model_params.yml', 'r') as in_yaml:
         params = yaml.safe_load(in_yaml)
+    assert(not (override.keys() - params.keys()))
+    params.update(override)
     params['DEFAULT_LLR_F'] = -prob_to_llr(params['CROSS_P']).numpy().tolist()
-    params['DEFAULT_LLR'] = convert_to_int(params['DEFAULT_LLR_F'], params['DECIMAL_POINT_BIT'], params['LLR_WIDTH']).tolist()
+    params['DEFAULT_LLR'] = convert_to_int(params['DEFAULT_LLR_F'], params).tolist()
     return params

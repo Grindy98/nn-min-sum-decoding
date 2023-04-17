@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.13.7
 #   kernelspec:
-#     display_name: py_new
+#     display_name: Python [conda env:nn]
 #     language: python
-#     name: py_new
+#     name: conda-env-nn-py
 # ---
 
 # %%
@@ -39,16 +39,10 @@ from matplotlib import pyplot as plt
 # ## Helper Functions Imports
 
 # %%
-import utils as utils_module
-from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params,\
-    set_bias_arr, generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph
+from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params, set_bias_arr, \
+    generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, convert_to_int, int_gen_mapper
 
 from model import get_compiled_model, datagen_creator
-
-def convert_to_int(arr):
-    return utils_module.convert_to_int(arr, params['DECIMAL_POINT_BIT'], params['LLR_WIDTH'])
-    
-
 
 # %% [markdown]
 # ## Configurations
@@ -122,7 +116,7 @@ history = model.fit(
 # %%
 model.evaluate(
     x=datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], zero_only=False),
-    steps=100 
+    steps=100
 )
 
 # %% [markdown]

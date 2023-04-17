@@ -81,8 +81,8 @@ def datagen_creator(gen_matrix, data_limit=1000000):
             x = y + mask
 
             # Transform from bool to llr
-            x = np.where(x, default_llr, -default_llr).astype('float64')
-            y = np.where(y, default_llr, -default_llr).astype('float64')
+            x = np.where(x, default_llr, -default_llr).astype('float32')
+            y = np.where(y, default_llr, -default_llr).astype('float32')
 
             yield x, y
     return datagen;
