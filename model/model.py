@@ -60,6 +60,7 @@ def get_compiled_model(tanner_graph, iters = 1, other_options = {}):
 # Generator matrix for shape and creation of codewords
 def datagen_creator(gen_matrix, data_limit=1000000):
     def datagen(batch_size, p, default_llr=None, zero_only=True, forced_flips=0):
+        rng = np.random.default_rng()
         if default_llr is None:
             default_llr = -utils.prob_to_llr(p)
         
@@ -74,9 +75,12 @@ def datagen_creator(gen_matrix, data_limit=1000000):
             y = y @ gen_matrix
 
             # This is the binary symmetric channel mask
-            mask = np.append(np.random.choice([0, 1], size=(y.shape[1]-forced_flips), p=[1-p, p]),
-                                        np.ones(forced_flips, dtype=int))
-            np.random.shuffle(mask)
+            mask = np.concatenate((
+                    np.random.choice([0, 1], size=(batch_size,  y.shape[1]-forced_flips), p=[1-p, p]),
+                    np.ones((batch_size, forced_flips), dtype=int)),
+                axis=1
+            )
+            mask = rng.permuted(mask, axis=1)
             mask = galois.GF2(mask)
             x = y + mask
 

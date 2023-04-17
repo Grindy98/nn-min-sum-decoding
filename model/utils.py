@@ -103,3 +103,9 @@ def get_params(override={}):
     params['DEFAULT_LLR_F'] = -prob_to_llr(params['CROSS_P']).numpy().tolist()
     params['DEFAULT_LLR'] = convert_to_int(params['DEFAULT_LLR_F'], params).tolist()
     return params
+
+def int_gen_mapper(gen, params):
+    for x, y in gen:
+        x = np.where(x > 0, params['DEFAULT_LLR'], -params['DEFAULT_LLR']).astype('float32')
+        y = np.where(y > 0, params['DEFAULT_LLR'], -params['DEFAULT_LLR']).astype('float32')
+        yield x, y  
