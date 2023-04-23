@@ -125,7 +125,9 @@ model.evaluate(
 # %%
 # Extract biases
 bias_arr = get_bias_arr(model)
-bias_arr_casted = convert_to_int(bias_arr, params)
+params_new = params.copy()
+params_new.update({'DECIMAL_POINT_BIT':5, 'LLR_WIDTH': 8})
+bias_arr_casted = convert_to_int(bias_arr, params_new)
 bias_arr_casted.dtype
 
 # %%

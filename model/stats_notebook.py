@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.13.7
 #   kernelspec:
-#     display_name: py_new
+#     display_name: Python [conda env:nn]
 #     language: python
-#     name: py_new
+#     name: conda-env-nn-py
 # ---
 
 # %%
@@ -40,14 +40,10 @@ import networkx as nx
 from matplotlib import pyplot as plt
 
 import utils as utils_module
-from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params,\
+from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params, convert_to_int,\
     set_bias_arr, generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph
 
 from model import get_compiled_model, datagen_creator
-
-def convert_to_int(arr):
-    return utils_module.convert_to_int(arr, params['DECIMAL_POINT_BIT'], params['LLR_WIDTH'])
-
 
 # %%
 gen_mat_dict = get_gen_mat_dict()
@@ -56,6 +52,8 @@ active_mat = gen_mat_dict['BCH_16_31']
 params = get_params()
 params
 
+callbacks = []
+
 # %%
 G, _ = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
@@ -63,15 +61,12 @@ model, n_v = get_compiled_model(G, params['BF_ITERS'])
 model.summary()
 
 # %%
-callbacks = [tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)]
-
-# %%
 gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], forced_flips=1)
 
 # %%
 history = model.fit(
     x=gen,
-    epochs=15,
+    epochs=10,
     verbose="auto",
     callbacks=callbacks,
     validation_split=0.0,
@@ -80,7 +75,7 @@ history = model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=100,
+    steps_per_epoch=200,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -125,14 +120,8 @@ ax.legend();plt.show()
 binom.sf(4,40,0.01)
 
 
-# %%
-
 # %% [markdown]
 # ## Model Stats
-
-# %%
-
-# %%
 
 # %%
 def model_stats(eval_fun):
@@ -236,11 +225,6 @@ all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', 'BC
 all_stats
 
 # %%
-with open('../data/stats/pystats.pkl', 'rb') as infile:
-    z = pickle.load(infile)
-    print(list(z[1].keys()))
-
-# %%
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 #ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
 #ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
@@ -260,7 +244,7 @@ ax.legend()
 ax.invert_xaxis()
 
 # %%
-all_stats_2 = multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('H_4_7', 100), ('BCH_11_15', 40)] )
+# all_stats_2 = multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('H_4_7', 100), ('BCH_11_15', 40)] )
 
 # %%
 c_stats = get_c_stats()
@@ -272,12 +256,129 @@ merge_stats = all_stats | c_stats
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER', ident=True), '--b', label='Identity')
 ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER'), '-b', label='Decoder')
-ax.loglog(*extract(merge_stats, 'BCH_16_31_C', 'BER'), '-g', label='Decoder C')
-ax.set_xlabel('$E_b/N_0(dB)$')
-ax.set_ylabel('BER ($P_b$)')
-ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
-ax.grid(True)
+ax.loglog(*extract(merge_stats, 'BCH_16_31_C', 'BER'), '-g', label='C Decoder')
+ax.set_xlabel('$p$')
+ax.set_ylabel('BER')
+ax.grid(which='minor', linestyle='--')
+ax.grid(which='major', linestyle='-', linewidth=2)
 ax.legend()
 ax.invert_xaxis()
+
+
+# %%
+def int_gen_mapper(gen, params):
+    for x, y in gen:
+        x = tf.where(x > 0, params['DEFAULT_LLR'], -params['DEFAULT_LLR'])
+        y = tf.where(y > 0, params['DEFAULT_LLR'], -params['DEFAULT_LLR'])
+        yield x, y  
+        
+def get_int_stats(orig_model, int_pars, my_gen):
+    
+    temp_params = get_params(int_pars)
+    temp_model, _ = get_compiled_model(G, temp_params['BF_ITERS'])
+    my_gen = int_gen_mapper(my_gen, temp_params)
+    
+    bias_arr = get_bias_arr(orig_model)
+    bias_arr_casted = convert_to_int(bias_arr, temp_params)
+    set_bias_arr(temp_model, bias_arr_casted.astype('float32'))
+    print(f"LLR for {int_pars}: {temp_params['DEFAULT_LLR']}")
+    stats = temp_model.evaluate(
+        x=my_gen,
+        steps=500
+    )
+    return stats
+    
+
+
+# %%
+# _gen_orig = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], zero_only=False)
+
+def get_gen_dup(gen_limit = 10000):
+    gen_orig = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], zero_only=False)
+    gen_list = itertools.tee(gen_orig, gen_limit)
+    for g in gen_list:
+        yield g
+gen_dup = get_gen_dup()
+
+# %%
+model.evaluate(
+    x=next(gen_dup),
+    steps=500
+)
+
+# %%
+get_int_stats(model, {'DECIMAL_POINT_BIT':8, 'LLR_WIDTH': 16}, next(gen_dup))
+
+
+# %%
+def int_stats_gen(attempt_load=True):
+    PATH = '../data/stats/py_int_stats.npy'
+    @np.vectorize
+    def my_function(x, y):
+        if x >= y:
+            return np.nan
+        res = get_int_stats(model, {'DECIMAL_POINT_BIT':x, 'LLR_WIDTH': y}, next(gen_dup))[1]
+        return (np.nan if np.allclose(res, 0) else res)
+    # create a 2D grid of integer values
+    max_dim = 12
+    x = np.arange(0, max_dim)
+    y = np.arange(1, max_dim + 1)
+    X, Y = np.meshgrid(x, y)
+    
+    int_data = None
+    if attempt_load:
+        try:
+            with open(PATH, 'rb') as infile:
+                int_data = np.load(infile, allow_pickle=True)
+        except OSError as e:
+            pass
+    
+    if int_data is not None:
+        if int_data.size != X.size:
+            int_data = None
+    
+    if int_data is None:
+        int_data = my_function(X, Y)
+        with open(PATH, 'wb') as outfile:
+            int_data.dump(outfile)
+    return (x, y), int_data
+
+
+# %%
+int_stats = int_stats_gen()
+int_stats
+
+# %%
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.transforms as mtransforms
+import matplotlib.colors as mcolors
+import matplotlib as mpl
+import numpy as np
+
+(x, y), Z = int_stats
+
+cmap = mpl.colormaps['plasma']
+cmap.set_bad(color='grey')
+
+# create the color map
+fig, ax = plt.subplots()
+im = ax.imshow(Z, cmap=cmap)
+
+# add a color bar
+cbar = ax.figure.colorbar(im, ax=ax)
+cbar.ax.set_ylabel('BER', rotation=270, labelpad=20)
+
+# set the axis labels
+ax.set_xticks(np.arange(len(x)))
+ax.set_yticks(np.arange(len(y)))
+ax.set_xticklabels(x)
+ax.set_yticklabels(y)
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.invert_yaxis()
+
+# show the plot
+plt.show()
 
 # %%
