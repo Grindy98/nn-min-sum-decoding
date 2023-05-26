@@ -48,17 +48,55 @@ from model import get_compiled_model, datagen_creator
 # %%
 gen_mat_dict = get_gen_mat_dict()
 
-active_mat = gen_mat_dict['BCH_16_31']
+active_mat = gen_mat_dict['BCH_11_15']
 params = get_params()
 params
 
 callbacks = []
 
 # %%
-G, _ = get_tanner_graph(active_mat)
+G, G_pos = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 model, n_v = get_compiled_model(G, params['BF_ITERS'])
 model.summary()
+
+# %%
+plotted_model, _ = get_compiled_model(G, 2)
+tf.keras.utils.plot_model(plotted_model, show_shapes=True, rankdir='TB', to_file='images/model.pdf')
+
+# %%
+fig, ax = plt.subplots(figsize=[7, 7])
+nx.draw_networkx(G, G_pos, ax=ax, node_size=400, font_size=10)
+plt.savefig('images/tanner.pdf', bbox_inches="tight")
+plt.show()
+
+# %%
+from layers import _stdize
+def calc_edge_props(G, edge, cnode=True):
+    edge_color = []
+    edge_width = []
+    matching_edges = set(_stdize(x) for x in G.edges(edge[0] if cnode else edge[1]))
+    matching_edges -= set([edge])
+    
+    for e in G.edges():
+        e = _stdize(e)
+        if e in matching_edges:
+            edge_color.append('blue')
+            edge_width.append(2.0)
+        elif e == edge:
+            edge_color.append('red')
+            edge_width.append(4.0)
+        else:
+            edge_color.append('black')
+            edge_width.append(1.0)
+    return {'edge_color': edge_color, 'width':edge_width}
+
+fig, axs = plt.subplots(figsize=[7, 7], ncols=2)
+nx.draw_networkx(G, G_pos, ax=axs[0], node_size=400, font_size=10, **calc_edge_props(G, ('c2', 'v2'), True))
+nx.draw_networkx(G, G_pos, ax=axs[1], node_size=400, font_size=10, **calc_edge_props(G, ('c2', 'v2'), False))
+# plt.subplots_adjust(wspace=0, hspace=0)
+plt.savefig('images/tanner_highlight.pdf', bbox_inches="tight")
+plt.show()
 
 # %%
 gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], forced_flips=1)
@@ -228,14 +266,14 @@ all_stats
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 #ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
 #ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
-# ax.loglog(*extract(all_stats, 'BCH_16_31_m', 'BER'), '-r', label='Decoder')
-# ax.loglog(*extract(all_stats, 'BCH_16_31_i', 'BER'), '--r', label='Identity')
-# ax.loglog(*extract(all_stats, 'BCH_11_15_m', 'BER'), '-k', label='Decoder')
-# ax.loglog(*extract(all_stats, 'BCH_11_15_i', 'BER'), '--k', label='Identity')
-ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='Decoder')
-ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='Identity')
-ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='Decoder')
-ax.loglog(*extract(all_stats, 'H_4_7', 'BER', ident=True), '--g', label='Identity')
+ax.loglog(*extract(all_stats, 'BCH_16_31_m', 'BER'), '-r', label='Decoder')
+ax.loglog(*extract(all_stats, 'BCH_16_31_i', 'BER'), '--r', label='Identity')
+ax.loglog(*extract(all_stats, 'BCH_11_15_m', 'BER'), '-k', label='Decoder')
+ax.loglog(*extract(all_stats, 'BCH_11_15_i', 'BER'), '--k', label='Identity')
+# ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='Decoder')
+# ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='Identity')
+# ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='Decoder')
+# ax.loglog(*extract(all_stats, 'H_4_7', 'BER', ident=True), '--g', label='Identity')
 ax.set_xlabel('$E_b/N_0(dB)$')
 ax.set_ylabel('BER ($P_b$)')
 ax.set_title('Probability of Bit Error for BPSK over AWGN channel')

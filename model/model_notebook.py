@@ -73,8 +73,8 @@ params
 G, pos = get_tanner_graph(active_mat)
 gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
 
-fig, ax = plt.subplots(figsize=[8, 12])
-nx.draw_networkx(G, pos, ax=ax, node_size=300, font_size=9)
+fig, ax = plt.subplots(figsize=[14, 14])
+nx.draw_networkx(G, pos, ax=ax, node_size=800, font_size=14)
 plt.show()
 
 # %% [markdown]
@@ -85,9 +85,6 @@ plt.show()
 # %%
 model, n_v = get_compiled_model(G, params['BF_ITERS'])
 model.summary()
-
-# %%
-# tf.keras.utils.plot_model(model, show_shapes=True)
 
 # %%
 gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], forced_flips=1)
@@ -125,9 +122,7 @@ model.evaluate(
 # %%
 # Extract biases
 bias_arr = get_bias_arr(model)
-params_new = params.copy()
-params_new.update({'DECIMAL_POINT_BIT':5, 'LLR_WIDTH': 8})
-bias_arr_casted = convert_to_int(bias_arr, params_new)
+bias_arr_casted = convert_to_int(bias_arr, params)
 bias_arr_casted.dtype
 
 # %%
