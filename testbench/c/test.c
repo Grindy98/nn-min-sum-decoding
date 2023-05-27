@@ -335,6 +335,7 @@ int main(int argc, char* argv[]){
     // Seed for rng
     srand(time(0));
     init_adj_mats();
+	printf("Test run for %s\n", MODEL_KEY);
     if(argc == 1){
         misc_tests();
     } else if(argc == 3 && strcmp(argv[1], "-d") == 0){

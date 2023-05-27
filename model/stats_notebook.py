@@ -122,6 +122,9 @@ history = model.fit(
     use_multiprocessing=False,
 )
 
+# %% [markdown]
+# ## Theoretical BER stats
+
 # %%
 from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.layers as layers_k
@@ -190,7 +193,7 @@ def BCH_model(p, steps, model_dict, gen_mat):
     return ret
 
 
-def multiple_stats(probs, key_list, try_cache = True, update_cache = True):
+def multiple_stats(probs, key_list, try_cache = True, update_cache = True, rerun_listed=False):
     key_list = [x if isinstance(x, tuple) else (x, 20) for x in key_list ]
     key_list = key_list_orig = set(key_list)
     PATH = '../data/stats/pystats.pkl'
@@ -202,8 +205,13 @@ def multiple_stats(probs, key_list, try_cache = True, update_cache = True):
         try:
             with open(PATH, 'rb') as infile:
                 data = pickle.load(infile)
+            
+            if rerun_listed:
+                for k in key_list:
+                    data.pop(k, None)
+            else:
+                key_list -= data.keys()
             ret_dict.update(data)
-            key_list -= data.keys()
             if not key_list:
                 # All already cached
                 return extract_ret(ret_dict)
@@ -257,19 +265,20 @@ def extract(stats, key, what, ident=False):
 
 
 # %%
+#multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['BCH_16_31'], rerun_listed=True)
 
 # %%
 all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', 'BCH_11_15', 'BCH_16_31'])
-all_stats
+list(all_stats.keys())
 
 # %%
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 #ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
 #ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
-ax.loglog(*extract(all_stats, 'BCH_16_31_m', 'BER'), '-r', label='Decoder')
-ax.loglog(*extract(all_stats, 'BCH_16_31_i', 'BER'), '--r', label='Identity')
-ax.loglog(*extract(all_stats, 'BCH_11_15_m', 'BER'), '-k', label='Decoder')
-ax.loglog(*extract(all_stats, 'BCH_11_15_i', 'BER'), '--k', label='Identity')
+ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-r', label='Decoder')
+ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER', ident=True), '--r', label='Identity')
+ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-k', label='Decoder')
+ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER', ident=True), '--k', label='Identity')
 # ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='Decoder')
 # ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='Identity')
 # ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='Decoder')
@@ -291,10 +300,11 @@ c_stats
 
 # %%
 merge_stats = all_stats | c_stats
+KEY_FILL = 'BCH_11_15'
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
-ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER', ident=True), '--b', label='Identity')
-ax.loglog(*extract(merge_stats, 'BCH_16_31', 'BER'), '-b', label='Decoder')
-ax.loglog(*extract(merge_stats, 'BCH_16_31_C', 'BER'), '-g', label='C Decoder')
+ax.loglog(*extract(merge_stats, KEY_FILL, 'BER', ident=True), '--b', label='Identity')
+ax.loglog(*extract(merge_stats, KEY_FILL, 'BER'), '-b', label='Decoder')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C', 'BER'), '-g', label='C Decoder')
 ax.set_xlabel('$p$')
 ax.set_ylabel('BER')
 ax.grid(which='minor', linestyle='--')
