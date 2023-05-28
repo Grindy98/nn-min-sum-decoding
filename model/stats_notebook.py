@@ -300,7 +300,7 @@ c_stats
 
 # %%
 merge_stats = all_stats | c_stats
-KEY_FILL = 'BCH_11_15'
+KEY_FILL = 'BCH_16_31'
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 ax.loglog(*extract(merge_stats, KEY_FILL, 'BER', ident=True), '--b', label='Identity')
 ax.loglog(*extract(merge_stats, KEY_FILL, 'BER'), '-b', label='Decoder')

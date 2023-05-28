@@ -150,6 +150,9 @@ model_no_w.evaluate(
 # %% [markdown]
 # # EXPORTS
 
+# %% [markdown]
+# ### METAPARAMETER WRITE
+
 # %%
 # Matrix data
 adj_matrix_dict = generate_adj_matrix_data(G)
@@ -166,8 +169,22 @@ par_dict.update(params)
 with open('../data/params.json', 'w') as jout:
     json.dump(par_dict, jout, indent=2)
 
+# %% [markdown]
+# ### FULL BIAS WRITE
+
 # %%
 # Save biases
+np.save('../data/biases.npy', bias_arr_casted)
+np.save('../data/biases_f.npy', bias_arr)
+
+# %% [markdown]
+# ### INT BIAS REFRESH
+
+# %%
+# Int biases refresh
+bias_arr = np.load('../data/biases_f.npy')
+bias_arr_casted = convert_to_int(bias_arr, params)
+
 np.save('../data/biases.npy', bias_arr_casted)
 
 # %% [markdown]

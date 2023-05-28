@@ -270,7 +270,7 @@ void export_model_stats(){
 void export_model_stats_threaded(const char* dir_path){
     def_print_type = '+';
 
-    double upper = 0.1, lower = 5e-5;
+    double upper = 0.1, lower = 1e-4;
     int n = 8;
     int n_thr = 4;
     double factor = pow(lower / upper, 1.0 / (n - 1));
