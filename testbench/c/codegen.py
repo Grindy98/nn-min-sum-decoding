@@ -29,7 +29,7 @@ def build_source(dict_of_arrays, params, file_name):
     ret += '// GENERATED FILE -- DO NOT MODIFY DIRECTLY\n'
     ret += f'#include "{file_name}.h"\n'
     # Define const params
-    ret += f'const char MODEL_KEY[] = "{params["MODEL_KEY"]}";\n'
+    ret += f'const char MODEL_KEY[] = "{params["MODEL_KEY"]}({params["LLR_WIDTH"]}_{params["DECIMAL_POINT_BIT"]})";\n'
     ret += f'const int DEFAULT_LLR = {params["DEFAULT_LLR"]};\n'
     ret += f'const int CINT_SIZE = {params["LLR_WIDTH"]};\n'
     ret += f'const double CROSS_P = {params["CROSS_P"]};\n'

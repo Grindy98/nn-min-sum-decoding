@@ -247,16 +247,19 @@ def multiple_stats(probs, key_list, try_cache = True, update_cache = True, rerun
 def get_c_stats(): 
     ret_dict = {}
     for p in pathlib.Path('../data/stats/').iterdir():
-        if match := re.match(r'stats_(.*)\.json', p.name):
+        if match := re.match(r'stats_(.*)\(([0-9]*)_([0-9]*)\)\.json', p.name):
             key = match.group(1)
+            llr_w = int(match.group(2))
+            dec_p_bit = int(match.group(3))
             with p.open('rb') as infile:
                 c_stats = json.load(infile)
-            ret_dict[(f'{key}_C', -1)] = {'m': [{'BER': x['ber'], 'FER': x['fer']} for x in c_stats],
-                                          'p': [x['p'] for x in c_stats]}
+            ret_dict[(f'{key}_C_({llr_w}_{dec_p_bit})', -1)] = \
+                {'m': [{'BER': x['ber'], 'FER': x['fer']} for x in c_stats],
+                 'p': [x['p'] for x in c_stats]}
     return ret_dict
 
 def extract(stats, key, what, ident=False):
-    key_lst = [x for x in stats.keys() if x[0] == key]
+    key_lst = [x for x in stats.keys() if ((x[0] == key) if isinstance(key, str) else (x == key))]
     key_lst.sort(key=lambda x: x[1], reverse=True)
     key = key_lst[0]
     x_lst = stats[key]['p']
@@ -265,30 +268,91 @@ def extract(stats, key, what, ident=False):
 
 
 # %%
-#multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['BCH_16_31'], rerun_listed=True)
+# multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('BCH_11_15', 60)], rerun_listed=True)
 
 # %%
-all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', 'BCH_11_15', 'BCH_16_31'])
+all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', ('BCH_11_15', 40), 'BCH_16_31'])
 list(all_stats.keys())
 
 # %%
-fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+fig, ax = plt.subplots(nrows=2,ncols = 1, figsize=(9,11))
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.3) 
 #ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
 #ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
-ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-r', label='Decoder')
-ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER', ident=True), '--r', label='Identity')
-ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-k', label='Decoder')
-ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER', ident=True), '--k', label='Identity')
-# ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='Decoder')
-# ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='Identity')
-# ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='Decoder')
-# ax.loglog(*extract(all_stats, 'H_4_7', 'BER', ident=True), '--g', label='Identity')
+ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-k', label='BCH(16, 31) Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
+ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-r', label='BCH(11, 15) Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[0].set_xlabel('$E_b/N_0(dB)$')
+ax[0].set_ylabel('BER ($P_b$)')
+ax[0].set_title('BER for BCH codes')
+ax[0].grid(True)
+ax[0].legend()
+ax[0].invert_xaxis()
+ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER'), '-k', label='BCH(16, 31) Decoder')
+ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
+ax[1].loglog(*extract(all_stats, ('BCH_11_15', 40), 'FER'), '-r', label='BCH(11, 15) Decoder')
+ax[1].loglog(*extract(all_stats, ('BCH_11_15', 40), 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[1].set_xlabel('$E_b/N_0(dB)$')
+ax[1].set_ylabel('FER ($P_b$)')
+ax[1].set_title('FER for BCH codes')
+ax[1].grid(True)
+ax[1].legend()
+ax[1].invert_xaxis()
+
+plt.savefig('images/BCH_python.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
+
+# %%
+fig, ax = plt.subplots(nrows=2,ncols = 1, figsize=(9,11))
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.3) 
+#ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
+#ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
+ax[0].loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='LRRO(32, 44) Decoder')
+ax[0].loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--b', label='LRRO(32, 44) Identity', alpha=0.5)
+ax[0].loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='LRRO(4, 7) Decoder')
+ax[0].loglog(*extract(all_stats, 'H_4_7', 'BER', ident=True), '--g', label='LRRO(4, 7) Identity', alpha=0.5)
+ax[0].set_xlabel('$E_b/N_0(dB)$')
+ax[0].set_ylabel('BER ($P_b$)')
+ax[0].set_title('BER for LRRO codes')
+ax[0].grid(True)
+ax[0].legend()
+ax[0].invert_xaxis()
+ax[1].loglog(*extract(all_stats, 'H_32_44', 'FER'), '-b', label='LRRO(32, 44) Decoder')
+ax[1].loglog(*extract(all_stats, 'H_32_44', 'FER', ident=True), '--b', label='LRRO(32, 44) Identity', alpha=0.5)
+ax[1].loglog(*extract(all_stats, 'H_4_7', 'FER'), '-g', label='LRRO(4, 7) Decoder')
+ax[1].loglog(*extract(all_stats, 'H_4_7', 'FER', ident=True), '--g', label='LRRO(4, 7) Identity', alpha=0.5)
+ax[1].set_xlabel('$E_b/N_0(dB)$')
+ax[1].set_ylabel('FER ($P_b$)')
+ax[1].set_title('FER for LRRO codes')
+ax[1].grid(True)
+ax[1].legend()
+ax[1].invert_xaxis()
+
+plt.savefig('images/LRRO_python.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
+
+# %%
+fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.3) 
+#ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
+#ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
+ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--k', label='Identity', alpha=1)
+ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='LRRO(32, 44) Decoder')
+ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='LRRO(4, 7) Decoder')
+ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-k', label='BCH(16, 31) Decoder')
+ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-r', label='BCH(11, 15) Decoder')
 ax.set_xlabel('$E_b/N_0(dB)$')
 ax.set_ylabel('BER ($P_b$)')
-ax.set_title('Probability of Bit Error for BPSK over AWGN channel')
 ax.grid(True)
 ax.legend()
 ax.invert_xaxis()
+
+plt.savefig('images/all_BER_python.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
 
 # %%
 # all_stats_2 = multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('H_4_7', 100), ('BCH_11_15', 40)] )
@@ -299,14 +363,151 @@ c_stats
 
 
 # %%
-merge_stats = all_stats | c_stats
+merge_stats = all_stats | get_c_stats()
 KEY_FILL = 'BCH_16_31'
 fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
 ax.loglog(*extract(merge_stats, KEY_FILL, 'BER', ident=True), '--b', label='Identity')
 ax.loglog(*extract(merge_stats, KEY_FILL, 'BER'), '-b', label='Decoder')
-ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C', 'BER'), '-g', label='C Decoder')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(12_6)', 'BER'), '-g', label='C Decoder 12, 6')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(8_4)', 'BER'), '-r', label='C Decoder 8,4')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(8_3)', 'BER'), '-r', label='C Decoder 8,3')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(7_2)', 'BER'), '-r', label='C Decoder 8,3')
 ax.set_xlabel('$p$')
 ax.set_ylabel('BER')
+ax.grid(which='minor', linestyle='--')
+ax.grid(which='major', linestyle='-', linewidth=1.5)
+ax.legend()
+ax.invert_xaxis()
+
+# %%
+merge_stats = all_stats | get_c_stats()
+
+fig, ax = plt.subplots(nrows=2,ncols = 1, figsize=(9,11))
+fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.3) 
+#ax.semilogy(X_theory, compute_ber(X_theory),'-',label='BPSK Theory')
+#ax.semilogy(X_sim, [x[1]['BER'] for x in stat_list], 'X-b', label='BPSK Theory')
+
+ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-k', label='BCH(16, 31) Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
+ax[0].loglog(*extract(merge_stats, 'BCH_16_31_C_(8_3)', 'BER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-r', label='BCH(11, 15) Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[0].loglog(*extract(merge_stats, 'BCH_11_15_C_(8_3)', 'BER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
+ax[0].set_xlabel('$E_b/N_0(dB)$')
+ax[0].set_ylabel('BER ($P_b$)')
+ax[0].set_title('BER for LRRO codes')
+
+ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER'), '-k', label='BCH(16, 31) Decoder')
+ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
+ax[1].loglog(*extract(merge_stats, 'BCH_16_31_C_(8_3)', 'FER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
+ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER'), '-r', label='BCH(11, 15) Decoder')
+ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[1].loglog(*extract(merge_stats, 'BCH_11_15_C_(8_3)', 'FER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
+ax[1].set_xlabel('$E_b/N_0(dB)$')
+ax[1].set_ylabel('FER ($P_b$)')
+ax[1].set_title('FER for LRRO codes')
+
+
+for a in ax:
+    a.grid(which='minor', linestyle='--')
+    a.grid(which='major', linestyle='-', linewidth=1.5)
+    a.legend()
+    a.invert_xaxis()
+
+# plt.savefig('images/LRRO_python.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
+
+# %%
+import matplotlib.cm as cm
+
+# Generate some random data
+merge_stats = all_stats | get_c_stats()
+KEY_FILL = 'BCH_16_31'
+fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+
+ax.loglog(*extract(merge_stats, KEY_FILL, 'BER', ident=True), '--k', label='Identity')
+ax.loglog(*extract(merge_stats, KEY_FILL, 'BER'), '-k', label='Decoder')
+
+secondary_lines = [(f'{KEY_FILL}_C_(12_6)', 'C Decoder 12, 6'), 
+                   (f'{KEY_FILL}_C_(8_4)', 'C Decoder 8, 4'), 
+                   (f'{KEY_FILL}_C_(8_3)', 'C Decoder 8, 3'),
+                   (f'{KEY_FILL}_C_(7_2)', 'C Decoder 7, 2'),
+                   (f'{KEY_FILL}_C_(6_1)', 'C Decoder 6, 1'),
+                   (f'{KEY_FILL}_C_(5_0)', 'C Decoder 5, 0')
+                  ]
+
+# Define the colormap and normalize the range
+cmap = cm.get_cmap('plasma')
+norm = plt.Normalize(0, len(secondary_lines))
+
+# Plot the secondary lines with varying colors from the colormap
+for i in range(len(secondary_lines)):
+    color = cmap(norm(i))
+    ax.plot(*extract(merge_stats, secondary_lines[i][0], 'BER'), 's:', 
+            color=color, alpha=0.7, label=secondary_lines[i][1], linewidth=2)
+    
+ax.set_xlabel('$p$')
+ax.set_ylabel('BER')
+ax.grid(which='minor', linestyle='--')
+ax.grid(which='major', linestyle='-', linewidth=1.5)
+ax.legend()
+ax.invert_xaxis()
+
+plt.savefig('images/C_stats.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
+
+# %%
+import matplotlib.cm as cm
+
+# Generate some random data
+merge_stats = all_stats | get_c_stats()
+KEY_FILL = 'BCH_16_31'
+fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+
+ax.loglog(*extract(merge_stats, KEY_FILL, 'FER', ident=True), '--k', label='Identity')
+ax.loglog(*extract(merge_stats, KEY_FILL, 'FER'), '-k', label='Decoder')
+
+secondary_lines = [(f'{KEY_FILL}_C_(12_6)', 'C Decoder 12, 6'), 
+                   (f'{KEY_FILL}_C_(8_4)', 'C Decoder 8, 4'), 
+                   (f'{KEY_FILL}_C_(8_3)', 'C Decoder 8, 3'),
+                   (f'{KEY_FILL}_C_(7_2)', 'C Decoder 7, 2'),
+                   (f'{KEY_FILL}_C_(6_1)', 'C Decoder 6, 1'),
+                   (f'{KEY_FILL}_C_(5_0)', 'C Decoder 5, 0')
+                  ]
+
+# Define the colormap and normalize the range
+cmap = cm.get_cmap('plasma')
+norm = plt.Normalize(0, len(secondary_lines))
+
+# Plot the secondary lines with varying colors from the colormap
+for i in range(len(secondary_lines)):
+    color = cmap(norm(i))
+    ax.plot(*extract(merge_stats, secondary_lines[i][0], 'FER'), 's:', 
+            color=color, alpha=0.7, label=secondary_lines[i][1], linewidth=2)
+    
+ax.set_xlabel('$p$')
+ax.set_ylabel('FER')
+ax.grid(which='minor', linestyle='--')
+ax.grid(which='major', linestyle='-', linewidth=1.5)
+ax.legend()
+ax.invert_xaxis()
+
+plt.savefig('images/C_stats.pdf', bbox_inches="tight")
+# show the plot
+plt.show()
+
+# %%
+KEY_FILL = 'BCH_16_31'
+fig, ax = plt.subplots(nrows=1,ncols = 1, figsize=(10,7))
+ax.loglog(*extract(merge_stats, KEY_FILL, 'FER', ident=True), '--b', label='Identity')
+ax.loglog(*extract(merge_stats, KEY_FILL, 'FER'), '-b', label='Decoder')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(12_6)', 'FER'), '-g', label='C Decoder 12, 6')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(8_4)', 'FER'), '-r', label='C Decoder 8,4')
+ax.loglog(*extract(merge_stats, f'{KEY_FILL}_C_(8_3)', 'FER'), '-r', label='C Decoder 8,3')
+ax.set_xlabel('$p$')
+ax.set_ylabel('FER')
 ax.grid(which='minor', linestyle='--')
 ax.grid(which='major', linestyle='-', linewidth=2)
 ax.legend()
@@ -410,7 +611,7 @@ cmap = mpl.colormaps['plasma']
 cmap.set_bad(color='grey')
 
 # create the color map
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=[7,7])
 im = ax.imshow(Z, cmap=cmap)
 
 # add a color bar
@@ -422,10 +623,10 @@ ax.set_xticks(np.arange(len(x)))
 ax.set_yticks(np.arange(len(y)))
 ax.set_xticklabels(x)
 ax.set_yticklabels(y)
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
+ax.set_xlabel('Decimal Point Placement (D)')
+ax.set_ylabel('LLR Width (N)')
 ax.invert_yaxis()
-
+plt.savefig('images/int_gridplot.pdf', bbox_inches="tight")
 # show the plot
 plt.show()
 

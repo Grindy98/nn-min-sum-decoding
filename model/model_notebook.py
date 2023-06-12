@@ -92,7 +92,7 @@ gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], 
 # %%
 history = model.fit(
     x=gen,
-    epochs=10,
+    epochs=20,
     verbose="auto",
     callbacks=None,
     validation_split=0.0,
@@ -101,7 +101,7 @@ history = model.fit(
     class_weight=None,
     sample_weight=None,
     initial_epoch=0,
-    steps_per_epoch=200,
+    steps_per_epoch=300,
     validation_steps=None,
     validation_batch_size=None,
     validation_freq=1,
@@ -152,6 +152,11 @@ model_no_w.evaluate(
 
 # %% [markdown]
 # ### METAPARAMETER WRITE
+
+# %%
+# Force params reloading
+params = get_params()
+params
 
 # %%
 # Matrix data
