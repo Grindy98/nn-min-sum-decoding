@@ -33,6 +33,7 @@ import itertools
 import pathlib
 import re
 import traceback
+import os
 
 import numpy as np
 import galois
@@ -41,9 +42,24 @@ from matplotlib import pyplot as plt
 
 import utils as utils_module
 from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params, convert_to_int,\
-    set_bias_arr, generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph
+    set_bias_arr, generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, get_bias_path
 
 from model import get_compiled_model, datagen_creator
+
+# %%
+from tensorflow.keras.optimizers import Adam
+import tensorflow.keras.layers as layers_k
+from tensorflow.keras.models import Model
+from metrics import BER, FER
+
+def get_ident_model(n):
+    inp = layers_k.Input(shape=(n,))
+    model_id = Model(inp, inp)
+
+    adam = Adam(learning_rate=0.1)
+    model_id.compile(adam, metrics=[BER(), FER()])
+    return model_id
+
 
 # %%
 gen_mat_dict = get_gen_mat_dict()
@@ -122,23 +138,9 @@ history = model.fit(
     use_multiprocessing=False,
 )
 
+
 # %% [markdown]
 # ## Theoretical BER stats
-
-# %%
-from tensorflow.keras.optimizers import Adam
-import tensorflow.keras.layers as layers_k
-from tensorflow.keras.models import Model
-from metrics import BER, FER
-
-def get_ident_model(n):
-    inp = layers_k.Input(shape=(n,))
-    model_id = Model(inp, inp)
-
-    adam = Adam(learning_rate=0.1)
-    model_id.compile(adam, metrics=[BER(), FER()])
-    return model_id
-
 
 # %%
 def compute_ber(EbN0):
@@ -193,7 +195,7 @@ def BCH_model(p, steps, model_dict, gen_mat):
     return ret
 
 
-def multiple_stats(probs, key_list, try_cache = True, update_cache = True, rerun_listed=False):
+def multiple_stats(probs, key_list, try_cache = True, update_cache = True, rerun_listed=False, use_saved_biases=True):
     key_list = [x if isinstance(x, tuple) else (x, 20) for x in key_list ]
     key_list = key_list_orig = set(key_list)
     PATH = '../data/stats/pystats.pkl'
@@ -219,19 +221,32 @@ def multiple_stats(probs, key_list, try_cache = True, update_cache = True, rerun
         except Exception as e:
             print(f'Cannot load cache: {e}')
             print(traceback.format_exc())
-
+    
+    if use_saved_biases:
+        error_key_list = []
+        for k, _ in key_list:
+            if not os.path.exists(get_bias_path(key=k)):
+                error_key_list.append(k)
+        if error_key_list:        
+            raise ValueError(f"No saved biases for {', '.join([str(x) for x in error_key_list])}")
+    
     for k, step_weight in key_list:
         active_mat = gen_mat_dict[k]
         G, _ = get_tanner_graph(active_mat)
         gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
         model, n_v = get_compiled_model(G, params['BF_ITERS'])
-        gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], forced_flips=1)
-        model.fit(
-            x=gen,
-            epochs=15,
-            callbacks=callbacks,
-            steps_per_epoch=100,
-        )
+        if use_saved_biases:
+            bias_arr = np.load(get_bias_path(key=k))
+            set_bias_arr(model, bias_arr)
+        else:
+            print(f'Train {k}')
+            gen = datagen_creator(gen_mat)(120, params['CROSS_P'], params['DEFAULT_LLR_F'], forced_flips=1)
+            model.fit(
+                x=gen,
+                epochs=15,
+                callbacks=callbacks,
+                steps_per_epoch=100,
+            )
         print(f'Get stats for {k}')
         stat_tup = BCH_model(probs, gen_mat, {'m': model, 'i': get_ident_model(n_v)}, step_weight)
         stat_dict = stat_tup[1]
@@ -268,10 +283,10 @@ def extract(stats, key, what, ident=False):
 
 
 # %%
-# multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('BCH_11_15', 60)], rerun_listed=True)
+multiple_stats(np.geomspace(1e-1, 5e-5, 7), [('H_4_7', 60)], rerun_listed=True)
 
 # %%
-all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', 'H_4_7', ('BCH_11_15', 40), 'BCH_16_31'])
+all_stats = multiple_stats(np.geomspace(1e-1, 5e-5, 7), ['H_32_44', ('H_4_7', 60), ('BCH_11_15', 40), 'BCH_16_31', 'BCH_21_31'])
 list(all_stats.keys())
 
 # %%
@@ -291,8 +306,8 @@ ax[0].legend()
 ax[0].invert_xaxis()
 ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER'), '-k', label='BCH(16, 31) Decoder')
 ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
-ax[1].loglog(*extract(all_stats, ('BCH_11_15', 40), 'FER'), '-r', label='BCH(11, 15) Decoder')
-ax[1].loglog(*extract(all_stats, ('BCH_11_15', 40), 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER'), '-r', label='BCH(11, 15) Decoder')
+ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
 ax[1].set_xlabel('$E_b/N_0(dB)$')
 ax[1].set_ylabel('FER ($P_b$)')
 ax[1].set_title('FER for BCH codes')
@@ -343,6 +358,7 @@ ax.loglog(*extract(all_stats, 'H_32_44', 'BER', ident=True), '--k', label='Ident
 ax.loglog(*extract(all_stats, 'H_32_44', 'BER'), '-b', label='LRRO(32, 44) Decoder')
 ax.loglog(*extract(all_stats, 'H_4_7', 'BER'), '-g', label='LRRO(4, 7) Decoder')
 ax.loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-k', label='BCH(16, 31) Decoder')
+ax.loglog(*extract(all_stats, 'BCH_21_31', 'BER'), '-y', label='BCH(16, 31) Decoder')
 ax.loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-r', label='BCH(11, 15) Decoder')
 ax.set_xlabel('$E_b/N_0(dB)$')
 ax.set_ylabel('BER ($P_b$)')
@@ -389,20 +405,20 @@ fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, h
 
 ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER'), '-k', label='BCH(16, 31) Decoder')
 ax[0].loglog(*extract(all_stats, 'BCH_16_31', 'BER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
-ax[0].loglog(*extract(merge_stats, 'BCH_16_31_C_(8_3)', 'BER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
-ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER'), '-r', label='BCH(11, 15) Decoder')
-ax[0].loglog(*extract(all_stats, 'BCH_11_15', 'BER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
-ax[0].loglog(*extract(merge_stats, 'BCH_11_15_C_(8_3)', 'BER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
+ax[0].loglog(*extract(merge_stats, 'BCH_16_31_C_(10_4)', 'BER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_21_31', 'BER'), '-r', label='BCH(11, 15) Decoder')
+ax[0].loglog(*extract(all_stats, 'BCH_21_31', 'BER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+ax[0].loglog(*extract(merge_stats, 'BCH_21_31_C_(10_4)', 'BER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
 ax[0].set_xlabel('$E_b/N_0(dB)$')
 ax[0].set_ylabel('BER ($P_b$)')
 ax[0].set_title('BER for LRRO codes')
 
 ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER'), '-k', label='BCH(16, 31) Decoder')
 ax[1].loglog(*extract(all_stats, 'BCH_16_31', 'FER', ident=True), '--k', label='BCH(16, 31) Identity', alpha=0.5)
-ax[1].loglog(*extract(merge_stats, 'BCH_16_31_C_(8_3)', 'FER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
-ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER'), '-r', label='BCH(11, 15) Decoder')
-ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
-ax[1].loglog(*extract(merge_stats, 'BCH_11_15_C_(8_3)', 'FER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
+ax[1].loglog(*extract(merge_stats, 'BCH_16_31_C_(10_4)', 'FER'), 's--', color='gray', label='BCH(16, 31) C Decoder')
+# ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER'), '-r', label='BCH(11, 15) Decoder')
+# ax[1].loglog(*extract(all_stats, 'BCH_11_15', 'FER', ident=True), '--r', label='BCH(11, 15) Identity', alpha=0.5)
+# ax[1].loglog(*extract(merge_stats, 'BCH_11_15_C_(10_4)', 'FER'), 's--', color='pink', label='BCH(11, 15) C Decoder')
 ax[1].set_xlabel('$E_b/N_0(dB)$')
 ax[1].set_ylabel('FER ($P_b$)')
 ax[1].set_title('FER for LRRO codes')

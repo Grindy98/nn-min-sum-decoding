@@ -87,6 +87,12 @@ def get_gen_mat_dict():
         'BCH_16_31': np.array(tf.constant(
         galois.generator_to_parity_check_matrix(
             galois.poly_to_generator_matrix(31, galois.BCH(31, 16).generator_poly)))),
+        'BCH_26_31': np.array(tf.constant(
+        galois.generator_to_parity_check_matrix(
+            galois.poly_to_generator_matrix(31, galois.BCH(31, 26).generator_poly)))),
+        'BCH_21_31': np.array(tf.constant(
+        galois.generator_to_parity_check_matrix(
+            galois.poly_to_generator_matrix(31, galois.BCH(31, 21).generator_poly)))),
         'BCH_11_15': np.array(tf.constant(
         galois.generator_to_parity_check_matrix(
             galois.poly_to_generator_matrix(15, galois.BCH(15, 11).generator_poly)))),
@@ -103,3 +109,6 @@ def get_params(override={}):
     params['DEFAULT_LLR_F'] = -prob_to_llr(params['CROSS_P']).numpy().tolist()
     params['DEFAULT_LLR'] = convert_to_int(params['DEFAULT_LLR_F'], params).tolist()
     return params
+
+def get_bias_path(params=None, key=None):
+    return f"../data/biases/bias_{params['MODEL_KEY'] if key is None else key}.npy"

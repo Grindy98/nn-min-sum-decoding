@@ -29,6 +29,7 @@ import json
 import yaml
 import tensorflow as tf
 import scipy.io
+import os
 
 import numpy as np
 import galois
@@ -40,7 +41,7 @@ from matplotlib import pyplot as plt
 
 # %%
 from utils import prob_to_llr, llr_to_prob, get_bias_arr, get_params, set_bias_arr, \
-    generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, convert_to_int
+    generate_adj_matrix_data, get_gen_mat_dict, get_tanner_graph, convert_to_int, get_bias_path
 
 from model import get_compiled_model, datagen_creator
 
@@ -116,12 +117,31 @@ model.evaluate(
     steps=100
 )
 
+# %%
+bias_arr = get_bias_arr(model)
+
+# %% [markdown]
+# ## Bias Import 
+# **SKIP IF MODEL RERUN**
+
+# %%
+params = get_params()
+if not os.path.exists(get_bias_path(params)):
+    raise ValueError('No saved bias')
+active_mat = gen_mat_dict[params['MODEL_KEY']]
+
+G, _ = get_tanner_graph(active_mat)
+gen_mat = galois.parity_check_to_generator_matrix(galois.GF2(active_mat))
+model, n_v = get_compiled_model(G, params['BF_ITERS'])
+
+bias_arr = np.load(get_bias_path(params))
+set_bias_arr(model, bias_arr)
+
 # %% [markdown]
 # ## Bias Extraction and Integer Cast Evaluation
 
 # %%
 # Extract biases
-bias_arr = get_bias_arr(model)
 bias_arr_casted = convert_to_int(bias_arr, params)
 bias_arr_casted.dtype
 
@@ -156,7 +176,7 @@ model_no_w.evaluate(
 # %%
 # Force params reloading
 params = get_params()
-params
+print(params)
 
 # %%
 # Matrix data
@@ -179,15 +199,17 @@ with open('../data/params.json', 'w') as jout:
 
 # %%
 # Save biases
+if os.path.exists(get_bias_path(params)):
+    raise ValueError('Cannot override biases implicitly')
 np.save('../data/biases.npy', bias_arr_casted)
-np.save('../data/biases_f.npy', bias_arr)
+np.save(get_bias_path(params), bias_arr)
 
 # %% [markdown]
 # ### INT BIAS REFRESH
 
 # %%
 # Int biases refresh
-bias_arr = np.load('../data/biases_f.npy')
+bias_arr = np.load(get_bias_path(params))
 bias_arr_casted = convert_to_int(bias_arr, params)
 
 np.save('../data/biases.npy', bias_arr_casted)
