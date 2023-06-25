@@ -1,13 +1,15 @@
 {
-  "N_V": 15,
-  "E": 32,
-  "DECIMAL_POINT_BIT": 4,
+  "N_V": 31,
+  "E": 140,
+  "MODEL_KEY": "BCH_16_31",
+  "DECIMAL_POINT_BIT": 3,
+  "LLR_WIDTH": 8,
   "INT_SIZE": 8,
-  "BF_ITERS": 5,
-  "CROSS_P": 0.01,
   "RESET_VAL": 1,
   "AXI_WIDTH": 32,
-  "LLR_WIDTH": 8,
   "EXTENDED_BITS": 4,
-  "DEFAULT_LLR": 74
+  "BF_ITERS": 5,
+  "CROSS_P": 0.01,
+  "DEFAULT_LLR_F": 4.595119953155518,
+  "DEFAULT_LLR": 37
 }

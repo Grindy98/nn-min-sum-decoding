@@ -19,7 +19,7 @@ matrix_t* generate_random_codeword(matrix_t* gen_mat){
     return ret;
 }
 
-matrix_t* apply_channel(matrix_t* codeword, float crossover_p){
+matrix_t* apply_channel(matrix_t* codeword, double crossover_p){
     if(!codeword->is_mod_two){
         custom_print('+', "Codeword has to be mod 2\n");
         exit(1);
@@ -99,7 +99,7 @@ matrix_t* cast_from_llr(matrix_t* llr){
     return out;
 }
 
-matrix_t* channel_out_llr(matrix_t* codeword, float crossover_p){
+matrix_t* channel_out_llr(matrix_t* codeword, double crossover_p){
     matrix_t* output_cw = apply_channel(codeword, crossover_p);
     matrix_t* out = cast_to_llr(output_cw);
     free_mat(&output_cw);
