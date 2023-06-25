@@ -122,7 +122,7 @@ bias_arr = get_bias_arr(model)
 
 # %% [markdown]
 # ## Bias Import 
-# **SKIP IF MODEL RERUN**
+# **SKIP IF MODEL TRAINING**
 
 # %%
 params = get_params()
